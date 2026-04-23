@@ -133,7 +133,7 @@ fig2 <- ggplot(fish_long, aes(sample = value, color = esu)) +
 print(fig2)
 ```
 
-```{r EDA-3, echo = FALSE, tbl.cap = "Shapiro-wilk test formal test of normality by group."}
+```{r EDA-3, echo = FALSE, tbl.cap = "Shapiro-wilk formal test of normality by group."}
 fish_long |>
   group_by(variable, esu) |>
   summarize(
@@ -144,7 +144,7 @@ fish_long |>
   arrange(variable, esu) |>
   kable(
     col.names = c("Variable", "ESU Group", "W", "p-value"),
-    caption   = "Shapiro-Wilk for test Normality (var. and group)",
+    caption = "Shapiro-wilk formal test of normality by group",
     booktabs = TRUE) |>
   kable_styling(
     latex_options = c("striped", "hold_position"),
@@ -195,9 +195,9 @@ juv_test <- t.test(juvenile_return ~ esu, data = final_data, var.equal = FALSE)
 juv_test
 ```
 
-```{r mod-1b, echo = FALSE, tbl.cap = "Welch Two-Sample t-test Results for Question 1."}
+```{r mod-1b, include = FALSE}
 # create a tidy table
-bind_rows(
+SAR_juv <- bind_rows(
   tidy(sar_test) |> mutate(metric = "SAR"),
   tidy(juv_test) |> mutate(metric = "Juvenile Return")
 ) |>
@@ -210,14 +210,20 @@ transmute(
     `p-value`       = p.value,
     `CI Low`        = conf.low,
     `CI High`       = conf.high
-) |>
-  kable(digits = 3, caption = "Welch Two-Sample t-test Results",
+)
+```
+
+```{r mod-1c, echo = FALSE, tbl.cap = "Welch Two-Sample t-test Results for Question 1."}
+SAR_juv_vis <- SAR_juv |>
+kable(digits = 3, 
+    caption = "Welch Two-Sample t-test Results for Question 1",
     booktabs = TRUE) |>
   kable_styling(
     latex_options = c("striped", "hold_position"),
     full_width = FALSE
   )
 
+SAR_juv_vis
 ```
 
 
@@ -346,7 +352,7 @@ plot(final_data$esu, final_data$mean_SAR,
 
 plot(final_data$max_SST, final_data$mean_SAR,
      main = "M2: mean SAR vs max SST",
-     xlab = "max SST (°C)", ylab = "mean SAR")
+     xlab = "max SST (*C)", ylab = "mean SAR")
 
 plot(final_data$Mean_SST, final_data$mean_SAR,
      main = "M3: mean SAR vs Mean SST",
@@ -419,7 +425,7 @@ vif_table <- bind_rows(
 
 vif_table |>
   kable(
-    caption  = "VIF M2 and M3",
+    caption = "VIF for Model 2 and 3",
     booktabs = TRUE,
     align    = "llc"
   ) |>
@@ -443,7 +449,7 @@ BIC(m1, m2, m3)
 
 Model performance was evaluated using $R^2$, adjusted $R^2$, AIC, and BIC (Table 5). The baseline model (M1: ESU only) explained little variance in mean SAR ($R^2$ = 0.087, Adj.$R^2$ = 0.056) and produced the highest AIC (57.418) and BIC (61.720) of the three models, indicating poor fit. The addition of max SST to the baseline (M2) substantially improved explanatory power ($R^2$ = 0.365, Adj.$R^2$ = 0.319), representing a four-fold increase over M1, and produced the lowest AIC (48.187) and BIC (53.923) of all models. The addition of Mean SST (M3) similarly improved fit over the baseline ($R^2$ = 0.310, Adj.$R^2$ = 0.260, AIC = 50.753, BIC = 56.489), though performance was weaker than M2 across all metrics. The AIC difference between M2 and M3 exceeded 2 units, providing meaningful evidence in favor of M2 as the most parsimonious model. Taken together, these results indicate that max SST explains meaningful variance in mean SAR beyond ESU designation alone, while Mean SST provides a weaker but still informative contribution. (Table 5)
 
-```{r mod-3h, echo = FALSE, tbl.cap = "Model comparisons ($R^2$, AIC, BIC)."}
+```{r mod-3h, echo = FALSE, tbl.cap = "Model comparisons (R2, AIC, BIC)."}
 model_comparison <- data.frame(
   Model       = c("M1: ESU only", "M2: max_SST + ESU", "M3: Mean_SST + ESU"),
   R2          = round(c(summary(m1)$r.squared, 
@@ -458,8 +464,8 @@ model_comparison <- data.frame(
 
 kable(
   model_comparison,
-  col.names = c("Model", "R²", "Adj. R²", "AIC", "BIC"),
-  caption   = "Model comparisons (R², AIC, BIC)",
+  col.names = c("Model", "R2", "Adj. R2", "AIC", "BIC"),
+  caption   = "Model comparisons (R2, Adj. R2, AIC, BIC)",
   booktabs  = TRUE,
   align     = "llccc"
 ) |>
@@ -479,7 +485,7 @@ Welch’s two-sample $t$-tests were conducted to evaluate whether mean smolt-to-
 
 Welch’s two-sample $t$-tests were also conducted to assess whether mean sea surface temperature (SST) and maximum SST differed significantly between designation periods. No statistically significant difference was detected in mean SST between the pre-ESU ($\bar{x} = -0.105$) and post-ESU ($\bar{x} = 0.020$) periods ($t = -0.599$, $df = 27.620$, $p = 0.554$). In contrast, maximum SST differed significantly between the pre-ESU ($\bar{x} = 22.366\,^{\circ}\mathrm{C}$) and post-ESU ($\bar{x} = 23.424\,^{\circ}\mathrm{C}$) periods ($t = -2.641$, $df = 27.939$, $p = 0.013$), with post-designation years exhibiting higher peak sea surface temperatures. The null hypothesis was therefore retained for mean SST and rejected for maximum SST (Table~3). This result indicates measurable warming in peak ocean temperature coincident with the post-designation period, though the observational nature of the analysis precludes causal inference.
 
-\subsection*{Question 2C: Linear Model Comparison}
+\subsection*{Question 3: Linear Model Comparison}
 
 Three linear regression models were fit to evaluate whether sea surface temperature explains variance in mean SAR beyond ESU designation period alone. The baseline model (M1), which included only ESU designation as a predictor, explained little variance in mean SAR ($R^2 = 0.087$, Table~5), and ESU failed to reach statistical significance ($\beta_1 = 0.352$, $p = 0.107$), suggesting that designation period alone is insufficient to explain variation in smolt-to-adult return rates.
 
