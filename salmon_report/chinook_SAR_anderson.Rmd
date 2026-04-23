@@ -195,9 +195,9 @@ juv_test <- t.test(juvenile_return ~ esu, data = final_data, var.equal = FALSE)
 juv_test
 ```
 
-```{r mod-1b, include = FALSE}
+```{r mod-1b, echo = FALSE, tbl.cap = "Welch Two-Sample t-test Results for Question 1."}
 # create a tidy table
-SAR_juv <- bind_rows(
+bind_rows(
   tidy(sar_test) |> mutate(metric = "SAR"),
   tidy(juv_test) |> mutate(metric = "Juvenile Return")
 ) |>
@@ -210,22 +210,16 @@ transmute(
     `p-value`       = p.value,
     `CI Low`        = conf.low,
     `CI High`       = conf.high
-)
-```
-
-```{r mod-1c, echo = FALSE, tbl.cap = "Welch Two-Sample t-test Results for Question 1."}
-SAR_juv_vis <- SAR_juv |>
+) |>
 kable(digits = 3, 
     caption = "Welch Two-Sample t-test Results for Question 1",
-    booktabs = TRUE) |>
-  kable_styling(
+    booktabs = TRUE
+) |>
+kable_styling(
     latex_options = c("striped", "hold_position"),
     full_width = FALSE
   )
-
-SAR_juv_vis
 ```
-
 
 #### Question 2.
 Is there a significant difference in environmental variables such as mean Sea Surface Temperature (mean_SST) and maximum Sea Surface Temperature (max_SST) between the pre and post listing periods of critical habitat for the Spring-run, Upper Columbia Basin Chinook Salmon? We post this question poses the following testable hypotheses.
