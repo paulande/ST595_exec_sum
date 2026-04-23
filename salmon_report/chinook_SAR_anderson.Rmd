@@ -4,7 +4,9 @@ author: "Paul J Anderson"
 date: "`r Sys.Date()`"
 output: # bookdown::pdf_document2 <- try this for figure numbering
   pdf_document:
+    citation_package: natbib
     latex_engine: xelatex
+bibliography: references.bib    
 editor_options: 
   markdown: 
     wrap: 72
@@ -36,7 +38,7 @@ library(kableExtra)
 library(here) # using here to replace the absolute path with relative
 ```
 
-```{r}
+```{r, include=FALSE}
 # load in data
 # unscrubbed data
 fish_data <- read.csv(here("salmon_report", "fish_data.csv"))
@@ -47,20 +49,20 @@ fish_data <- read.csv(here("salmon_report", "fish_data.csv"))
 dataprep_data <- read.csv(here("salmon_report", "final_data_post_dataprep.csv"))
 ```
 
-```{r}
+```{r, include=FALSE}
 # scrubbed data
 final_data <- read.csv(here("salmon_report", "imputed_dataset.csv"))
 ```
 
 ## Introduction
 
-Declines in fish stocks have cultural, social, economic, and environmental consequences throughout the western United States. Tracking changes in fish abundance provides essential information for the conservation and management of these declining resources. As part of fishery management efforts, state and federal agencies routinely monitor oceanic and freshwater conditions to establish sustainable harvest limits. The National Oceanic and Atmospheric Administration (NOAA) identifies eight ocean indicators as critical for monitoring the health of salmon stocks along the U.S.\ West Coast \cite{ref5}. In particular, the oceanography of the Northern California Current system—including sea surface temperature (SST), coastal upwelling dynamics, and prey availability—plays a central role in determining the marine survival of juvenile salmon during their first year at sea \cite{ref9}. Ongoing research on salmon and steelhead populations in the Pacific Northwest continues to emphasize the complex interactions between ocean conditions and salmonid survival \cite{ref7,ref8}.
+Declines in fish stocks have cultural, social, economic, and environmental consequences throughout the western United States. Tracking changes in fish abundance provides essential information for the conservation and management of these declining resources. As part of fishery management efforts, state and federal agencies routinely monitor oceanic and freshwater conditions to establish sustainable harvest limits. The National Oceanic and Atmospheric Administration (NOAA) identifies eight ocean indicators as critical for monitoring the health of salmon stocks along the U.S.\ West Coast \citep{ref5}. In particular, the oceanography of the Northern California Current system—including sea surface temperature (SST), coastal upwelling dynamics, and prey availability—plays a central role in determining the marine survival of juvenile salmon during their first year at sea \citep{ref9}. Ongoing research on salmon and steelhead populations in the Pacific Northwest continues to emphasize the complex interactions between ocean conditions and salmonid survival \citep{ref7,ref8}.
 
-Previous studies examined the influence of SST and other oceanographic indicators on the smolt-to-adult return ratio (SAR) of the Upper Columbia Spring-run Chinook Salmon Evolutionarily Significant Unit (ESU) \cite{ref1}. While these studies identified potentially important relationships, statistical power was limited by a relatively short temporal record. The present study builds on this work by extending the analytical timeframe to 1994--2024 and stratifying observations according to whether they occurred before or after the ESU received critical habitat designation under the Endangered Species Act (September~2005) \cite{ref6}. This approach establishes pre- and post-designation comparison periods for assessing changes in biological and environmental conditions.
+Previous studies examined the influence of SST and other oceanographic indicators on the smolt-to-adult return ratio (SAR) of the Upper Columbia Spring-run Chinook Salmon Evolutionarily Significant Unit (ESU) \citep{ref1}. While these studies identified potentially important relationships, statistical power was limited by a relatively short temporal record. The present study builds on this work by extending the analytical timeframe to 1994--2024 and stratifying observations according to whether they occurred before or after the ESU received critical habitat designation under the Endangered Species Act (September~2005) \citep{ref6}. This approach establishes pre- and post-designation comparison periods for assessing changes in biological and environmental conditions.
 
-Mean SAR and juvenile return counts were used as biological response variables and were obtained from the Columbia Basin Research Data Access in Real Time (DART) system \cite{ref2}. Environmental explanatory variables included mean and maximum sea surface temperature for the California Current system, sourced from NOAA’s Northwest Fisheries Science Center \cite{ref3}. Additional climatic covariates were obtained from NOAA’s National Centers for Environmental Information \cite{ref4}. Copepod species richness and regional flooding event data were explored as additional explanatory variables; however, these indicators are reserved for future analyses due to the additional data processing required.
+Mean SAR and juvenile return counts were used as biological response variables and were obtained from the Columbia Basin Research Data Access in Real Time (DART) system \citep{ref2}. Environmental explanatory variables included mean and maximum sea surface temperature for the California Current system, sourced from NOAA’s Northwest Fisheries Science Center \citep{ref3}. Additional climatic covariates were obtained from NOAA’s National Centers for Environmental Information \citep{ref4}. Copepod species richness and regional flooding event data were explored as additional explanatory variables; however, these indicators are reserved for future analyses due to the additional data processing required.
 
-This report addresses three primary research questions. First, whether there is a significant difference in mean SAR and juvenile Chinook returns between pre- and post-designation periods. Second, whether mean SST and maximum SST differ significantly across those same periods. Third, which environmental variables best explain variance in mean SAR beyond what is attributable to ESU designation period alone \cite{ref10}. Given the observational and census-based nature of the available data, results are interpreted as descriptive of trends within the historical record rather than as inferential generalizations to a broader population.
+This report addresses three primary research questions. First, whether there is a significant difference in mean SAR and juvenile Chinook returns between pre- and post-designation periods. Second, whether mean SST and maximum SST differ significantly across those same periods. Third, which environmental variables best explain variance in mean SAR beyond what is attributable to ESU designation period alone \citep{ref10}. Given the observational and census-based nature of the available data, results are interpreted as descriptive of trends within the historical record rather than as inferential generalizations to a broader population.
 
 ## Methods
 
@@ -70,11 +72,11 @@ Fish stock, juvenile return, oceanographic, and climatic data were compiled from
 
 Sea surface temperature (SST) data, including annual mean and maximum values for the California Current system, were sourced from NOAA’s Northwest Fisheries Science Center. SST data were spatially filtered to the extent of the California Current system and temporally aggregated to annual summaries. Additional stochastic climatic variables were obtained from NOAA’s National Centers for Environmental Information; datasets covering 1994--2024 were downloaded, decompressed, and merged using the \texttt{pandas} and \texttt{glob} libraries in Python.
 
-Fish stock data were scrubbed following procedures similar to those employed by Team Nexus \cite{ref1}, retaining the full temporal extent of interest and preserving juvenile return fields. Climatic data were processed using a two-step dataflow implemented in Google Dataprep. The first processing recipe removed extraneous whitespace, standardized data types, removed unused fields, generated year identifiers, classified observations as occurring before or after critical habitat designation for the Evolutionarily Significant Unit (ESU), calculated yearly mean and maximum SST values, and sorted records by year. A second recipe filtered records by year and retained the ESU designation category, mean SST, and maximum SST variables.
+Fish stock data were scrubbed following procedures similar to those employed by Team Nexus \citep{ref1}, retaining the full temporal extent of interest and preserving juvenile return fields. Climatic data were processed using a two-step dataflow implemented in Google Dataprep. The first processing recipe removed extraneous whitespace, standardized data types, removed unused fields, generated year identifiers, classified observations as occurring before or after critical habitat designation for the Evolutionarily Significant Unit (ESU), calculated yearly mean and maximum SST values, and sorted records by year. A second recipe filtered records by year and retained the ESU designation category, mean SST, and maximum SST variables.
 
 Fish stock data were subsequently uploaded to a Google Cloud Storage bucket, and a third Dataprep recipe was used to join the processed climatic variables with the cleaned fish stock dataset. For the purposes of linear modeling, missing values in the response variables (\textit{mean SAR} and \textit{juvenile return}) were addressed through imputation. While imputing response variables is generally discouraged in confirmatory statistical analyses, the extent of missingness and the exploratory nature of this study motivated the use of imputation to avoid substantial reductions in effective sample size.
 
-A K-nearest neighbors (KNN) imputation approach, using mean values derived from the nearest neighboring observations, was selected as appropriate for the structure of the dataset. Imputation was implemented in Python using the \texttt{scikit-learn} library, with neighbor values computed from the Dataprep-processed dataset, following established methodology \cite{ref5}. Subsequent data processing, hypothesis testing, and statistical modeling were conducted using a combination of Python and \textsf{R}, with visualization and regression analyses performed locally.
+A K-nearest neighbors (KNN) imputation approach, using mean values derived from the nearest neighboring observations, was selected as appropriate for the structure of the dataset. Imputation was implemented in Python using the \texttt{scikit-learn} library, with neighbor values computed from the Dataprep-processed dataset, following established methodology \citep{ref5}. Subsequent data processing, hypothesis testing, and statistical modeling were conducted using a combination of Python and \textsf{R}, with visualization and regression analyses performed locally.
 
 ### Exploratory Data Analysis
 
@@ -109,22 +111,28 @@ fish_long <- final_data |>
   )
 
 # plot
-ggplot(fish_long, aes(x = esu, y = value, fill = esu)) +
+fig1 <- ggplot(fish_long, aes(x = esu, y = value, fill = esu)) +
   geom_boxplot(alpha = 0.5, outlier.shape = NA) +
   geom_jitter(width = 0.15, size = 2, alpha = 0.7) +
   facet_wrap(~ variable, scales = "free_y") +
   scale_fill_manual(values = c("#2171b5", "#cb181d")) +
   theme_minimal(base_size = 13)
+
+print(fig1)
 ```
+
 ```{r EDA-2, echo = FALSE, fig.cap = "Figure 2. Q-Q plots, visual check of normality."}
 # QQ plots
-ggplot(fish_long, aes(sample = value, color = esu)) +
+fig2 <- ggplot(fish_long, aes(sample = value, color = esu)) +
   stat_qq() +
   stat_qq_line() +
   facet_wrap(~ variable, scales = "free") +
   scale_color_manual(values = c("#2171b5", "#cb181d")) +
   theme_minimal(base_size = 13)
+
+print(fig2)
 ```
+
 ```{r EDA-3, echo = FALSE, tbl.cap = "Table 1. Shapiro-wilk test formal test of normality by group."}
 fish_long |>
   group_by(variable, esu) |>
@@ -350,12 +358,17 @@ par(mfrow = c(1, 3))
 plot(m1, which = 1, main = "M1 Residuals vs Fitted")
 plot(m2, which = 1, main = "M2 Residuals vs Fitted")
 plot(m3, which = 1, main = "M3 Residuals vs Fitted")
+
+par(mfrow = c(1, 1))  # reset!
 ```
+
 ```{r mod-3d, echo = FALSE, fig.cap = "Figure 6. Shapiro-Wilk for Normality of residuals."}
 par(mfrow = c(1, 3))
 plot(m1, which = 2, main = "M1 Q-Q")
 plot(m2, which = 2, main = "M2 Q-Q")
 plot(m3, which = 2, main = "M3 Q-Q")
+
+par(mfrow = c(1, 1))  # reset!
 ```
 
 ```{r mod-3e, echo = FALSE, tbl.cap = "Table 4. Shapiro-Wilk for Normality of residuals."}
@@ -376,7 +389,7 @@ data.frame(
 ```
 
 
-```{r mod-3f, echo = FALSE, fig.cap = "Figure 7. VIF for Model 2 and 3 (Model 1 has one predictor)."}
+```{r mod-3f, echo = FALSE, tbl.cap = "Figure 7. VIF for Model 2 and 3 (Model 1 has one predictor)."}
 extract_vif <- function(model, model_name) {
   v <- vif(model)
 
@@ -428,9 +441,9 @@ AIC(m1, m2, m3)
 BIC(m1, m2, m3)
 ```
 
-Model performance was evaluated using R^2, adjusted R^2, AIC, and BIC (Table 5). The baseline model (M1: ESU only) explained little variance in mean SAR (R^2 = 0.087, Adj.R^2 = 0.056) and produced the highest AIC (57.418) and BIC (61.720) of the three models, indicating poor fit. The addition of max SST to the baseline (M2) substantially improved explanatory power (R^2 = 0.365, Adj.R^2 = 0.319), representing a four-fold increase over M1, and produced the lowest AIC (48.187) and BIC (53.923) of all models. The addition of Mean SST (M3) similarly improved fit over the baseline (R^2 = 0.310, Adj.R^2 = 0.260, AIC = 50.753, BIC = 56.489), though performance was weaker than M2 across all metrics. The AIC difference between M2 and M3 exceeded 2 units, providing meaningful evidence in favor of M2 as the most parsimonious model. Taken together, these results indicate that max SST explains meaningful variance in mean SAR beyond ESU designation alone, while Mean SST provides a weaker but still informative contribution. (Table 5)
+Model performance was evaluated using $R^2$, adjusted $R^2$, AIC, and BIC (Table 5). The baseline model (M1: ESU only) explained little variance in mean SAR ($R^2$ = 0.087, Adj.$R^2$ = 0.056) and produced the highest AIC (57.418) and BIC (61.720) of the three models, indicating poor fit. The addition of max SST to the baseline (M2) substantially improved explanatory power ($R^2$ = 0.365, Adj.$R^2$ = 0.319), representing a four-fold increase over M1, and produced the lowest AIC (48.187) and BIC (53.923) of all models. The addition of Mean SST (M3) similarly improved fit over the baseline ($R^2$ = 0.310, Adj.$R^2$ = 0.260, AIC = 50.753, BIC = 56.489), though performance was weaker than M2 across all metrics. The AIC difference between M2 and M3 exceeded 2 units, providing meaningful evidence in favor of M2 as the most parsimonious model. Taken together, these results indicate that max SST explains meaningful variance in mean SAR beyond ESU designation alone, while Mean SST provides a weaker but still informative contribution. (Table 5)
 
-```{r mod-3h, echo = FALSE, tbl.cap = "Table 5. Model comparisons (R^2, AIC, BIC)."}
+```{r mod-3h, echo = FALSE, tbl.cap = "Table 5. Model comparisons ($R^2$, AIC, BIC)."}
 model_comparison <- data.frame(
   Model       = c("M1: ESU only", "M2: max_SST + ESU", "M3: Mean_SST + ESU"),
   R2          = round(c(summary(m1)$r.squared, 
@@ -443,15 +456,18 @@ model_comparison <- data.frame(
   BIC         = round(BIC(m1, m2, m3)$BIC, 3)
 )
 
-kable(model_comparison,
-    col.names = c("Model", "R^2", "Adj. R^2", "AIC", "BIC"),
-    caption   = "Table 5. Model comparisons (R^2, AIC, BIC)",
-    booktabs = TRUE,
-    align    = "llc"
-  ) |>
+kable(
+  model_comparison,
+  col.names = c("Model", "R²", "Adj. R²", "AIC", "BIC"),
+  caption   = "Model comparisons (R², AIC, BIC)",
+  booktabs  = TRUE,
+  align     = "llccc"
+) |>
 kable_styling(
-    latex_options = c("striped", "hold_position"),
-    full_width = FALSE)
+  latex_options = c("striped", "hold_position"),
+  full_width = FALSE
+)
+
 ```
 
 ## Results
@@ -468,19 +484,19 @@ Welch’s two-sample $t$-tests were also conducted to assess whether mean sea su
 
 Three linear regression models were fit to evaluate whether sea surface temperature explains variance in mean SAR beyond ESU designation period alone. The baseline model (M1), which included only ESU designation as a predictor, explained little variance in mean SAR ($R^2 = 0.087$, Table~5), and ESU failed to reach statistical significance ($\beta_1 = 0.352$, $p = 0.107$), suggesting that designation period alone is insufficient to explain variation in smolt-to-adult return rates.
 
-The inclusion of maximum sea surface temperature in model M2 substantially improved model fit ($R^2 = 0.365$, adjusted $R^2 = 0.319$, Table~5), with both maximum SST ($\beta_1 = -0.273$, $p = 0.002$) and ESU designation ($\beta_2 = 0.640$, $p = 0.003$) emerging as statistically significant predictors. The negative coefficient associated with maximum SST implies that each $1\,^{\circ}\mathrm{C}$ increase in peak sea surface temperature is associated with a decrease of 0.273 in mean SAR, holding ESU designation constant—an ecologically meaningful result consistent with documented thermal stress effects on juvenile salmon during early ocean residence \cite{ref7}.
+The inclusion of maximum sea surface temperature in model M2 substantially improved model fit ($R^2$ = 0.365$, adjusted $R^2$ = 0.319$, Table~5), with both maximum SST ($\beta_1 = -0.273$, $p = 0.002$) and ESU designation ($\beta_2 = 0.640$, $p = 0.003$) emerging as statistically significant predictors. The negative coefficient associated with maximum SST implies that each $1\,^{\circ}\mathrm{C}$ increase in peak sea surface temperature is associated with a decrease of 0.273 in mean SAR, holding ESU designation constant—an ecologically meaningful result consistent with documented thermal stress effects on juvenile salmon during early ocean residence \citep{ref7}.
 
-The addition of mean SST in model M3 also improved model fit relative to the baseline ($R^2 = 0.310$, adjusted $R^2 = 0.260$, Table~5), with both mean SST ($\beta_1 = -0.472$, $p = 0.006$) and ESU designation ($\beta_2 = 0.411$, $p = 0.038$) statistically significant. However, overall model performance was weaker than that of M2 across all evaluation metrics. Scatterplots of mean SAR against both SST predictors (Figure~4) visually supported the negative linear relationships identified in models M2 and M3.
+The addition of mean SST in model M3 also improved model fit relative to the baseline ($R^2$ = 0.310$, adjusted $R^2$ = 0.260$, Table~5), with both mean SST ($\beta_1 = -0.472$, $p = 0.006$) and ESU designation ($\beta_2 = 0.411$, $p = 0.038$) statistically significant. However, overall model performance was weaker than that of M2 across all evaluation metrics. Scatterplots of mean SAR against both SST predictors (Figure~4) visually supported the negative linear relationships identified in models M2 and M3.
 
-Model comparison using Akaike and Bayesian information criteria (AIC and BIC; Table~5) identified M2 as the best-fitting and most parsimonious model, with an AIC difference exceeding 2 units relative to M3 and 9 units relative to M1 \cite{ref10}. Consequently, the null hypothesis that sea surface temperature explains no variance in mean SAR beyond ESU designation alone was rejected for both M2 and M3, with maximum SST identified as the stronger environmental predictor.
+Model comparison using Akaike and Bayesian information criteria (AIC and BIC; Table~5) identified M2 as the best-fitting and most parsimonious model, with an AIC difference exceeding 2 units relative to M3 and 9 units relative to M1 \citep{ref10}. Consequently, the null hypothesis that sea surface temperature explains no variance in mean SAR beyond ESU designation alone was rejected for both M2 and M3, with maximum SST identified as the stronger environmental predictor.
  
 ## Discussion
 
-Our data suggest continued support for a statistically significant flatlining of recovery in the focal Evolutionarily Significant Unit (ESU), despite nearly 20 years of protection under the Endangered Species Act (ESA) and accompanying critical habitat designation \cite{ref4}. Early exploratory models showed some promise, with $R^2$ values ranging from approximately $0.50$ to $0.90$ after accounting for model complexity, in explaining the combined influence of climatic variables and prey availability on salmon recovery. However, none of these models were statistically significant ($p > 0.05$). Consequently, the present study was used to expand the available dataset where possible in order to assess the statistical power of these findings and gain deeper insight into the persistent challenges facing this salmon population \cite{ref1}.
+Our data suggest continued support for a statistically significant flatlining of recovery in the focal Evolutionarily Significant Unit (ESU), despite nearly 20 years of protection under the Endangered Species Act (ESA) and accompanying critical habitat designation \citep{ref4}. Early exploratory models showed some promise, with $R^2$ values ranging from approximately $0.50$ to $0.90$ after accounting for model complexity, in explaining the combined influence of climatic variables and prey availability on salmon recovery. However, none of these models were statistically significant ($p > 0.05$). Consequently, the present study was used to expand the available dataset where possible in order to assess the statistical power of these findings and gain deeper insight into the persistent challenges facing this salmon population \citep{ref1}.
 
-We expanded our analyses across two temporal periods, 1994--2005 and 2006--2024, corresponding to the years before and after critical habitat designation for Spring-run Chinook Salmon in the Columbia River Basin \cite{ref3}. These analyses confirmed no statistically significant change in Chinook Salmon smolt-to-adult return (SAR) rates across designation periods, a pattern further supported by the absence of significant differences in juvenile return rates. In contrast, a statistically significant difference was detected in annual maximum sea surface temperature (Max SST) between periods \cite{ref2}. A prior study also identified a marginally significant difference in copepod species richness along the U.S.\ West Coast, an indicator we intend to revisit in future analyses. In addition, a cursory examination of flooding event data was conducted, with more detailed analysis planned as additional data become available. Further data processing and modeling were undertaken to explore these patterns and assess potential relationships among environmental and biological variables.
+We expanded our analyses across two temporal periods, 1994--2005 and 2006--2024, corresponding to the years before and after critical habitat designation for Spring-run Chinook Salmon in the Columbia River Basin \citep{ref3}. These analyses confirmed no statistically significant change in Chinook Salmon smolt-to-adult return (SAR) rates across designation periods, a pattern further supported by the absence of significant differences in juvenile return rates. In contrast, a statistically significant difference was detected in annual maximum sea surface temperature (Max SST) between periods \citep{ref2}. A prior study also identified a marginally significant difference in copepod species richness along the U.S.\ West Coast, an indicator we intend to revisit in future analyses. In addition, a cursory examination of flooding event data was conducted, with more detailed analysis planned as additional data become available. Further data processing and modeling were undertaken to explore these patterns and assess potential relationships among environmental and biological variables.
 
-Prior to model fitting, assumptions of linearity, normality, and homoscedasticity were evaluated and deemed acceptable. Multiple linear regression models were then fit, yielding corresponding $R^2$ values. Model performance was further evaluated using Akaike Information Criterion (AIC) and Bayesian Information Criterion (BIC), both of which supported the relative fit of the selected model structures. Despite this, the overall regression models were not statistically significant (Model~1: $p = 0.4288$; Model~2: $p = 0.107$), suggesting limited inferential power given the available sample size. These results indicate that increasing the temporal or spatial scope of the dataset may improve the statistical resolution of these relationships. Although no definitive patterns emerged, the consistency among $R^2$, AIC, and BIC metrics supports continued investigation into the environmental drivers of SAR variability \cite{ref7}.
+Prior to model fitting, assumptions of linearity, normality, and homoscedasticity were evaluated and deemed acceptable. Multiple linear regression models were then fit, yielding corresponding $R^2$ values. Model performance was further evaluated using Akaike Information Criterion (AIC) and Bayesian Information Criterion (BIC), both of which supported the relative fit of the selected model structures. Despite this, the overall regression models were not statistically significant (Model~1: $p = 0.4288$; Model~2: $p = 0.107$), suggesting limited inferential power given the available sample size. These results indicate that increasing the temporal or spatial scope of the dataset may improve the statistical resolution of these relationships. Although no definitive patterns emerged, the consistency among $R^2$, AIC, and BIC metrics supports continued investigation into the environmental drivers of SAR variability \citep{ref7}.
 
 Linear modeling confirmed that ESU designation alone explains little variance in mean SAR ($R^2 = 0.087$, $p = 0.107$). The addition of maximum sea surface temperature as a covariate substantially improved model fit ($R^2 = 0.365$, AIC $= 48.187$), with maximum SST emerging as a significant negative predictor of mean SAR ($\beta_1 = -0.273$, $p = 0.002$), identifying peak ocean thermal conditions as a more informative predictor of smolt-to-adult survival than designation period alone. Model comparison using Akaike and Bayesian information criteria (AIC and BIC) confirmed M2 as the most parsimonious model.
 
@@ -490,68 +506,4 @@ Several limitations should be considered when interpreting these results. The da
 
 K-nearest neighbors (KNN) imputation of missing values in mean SAR and juvenile return during the pre-designation period introduced artificial compression of variance, contributing to the observed violation of normality in mean SAR prior to designation (Shapiro--Wilk $W = 0.845$, $p = 0.032$) and limiting confidence in associated $t$-test results. The annual time-series structure of the data also introduces potential temporal confounding, as observed differences between designation periods may partially reflect secular environmental trends rather than effects attributable to ESU designation itself.
 
-Model M3 exhibited mild heteroscedasticity in its residuals, warranting cautious interpretation of its coefficient estimates. The marginal SAR result ($p = 0.072$) and the modest $R^2$ of the best-fitting model ($R^2 = 0.365$) further suggest that important explanatory variables influencing smolt-to-adult return remain unaccounted for. A follow-up study incorporating a broader set of environmental covariates—including copepod species richness and precipitation-related indicators—and a larger, independently sampled dataset would be warranted before drawing management-relevant conclusions.
-
-References:
-
-1.  Anderson, P., Hughes, R., Team Nexus Data Wrangling Project. Oregon State University. CS512. Winter 2025. "Climate & Salmon: Assessing the Impact of Critical Habitat Designation, Climate Variables, and Food Availability on Smolt-to-Adult Return Rates for Spring-Run Chinook Salmon in Upper Columbia River Basin." Accessed 14 February 2025. https://tinyurl.com/2p8b6f3k
-
-2. Columbia Basin Research. "DART PIT Tag Columbia Basin ESU & DPS Smolt-to-Adult Return (SAR) Survival." Columbia Basin Research, University of Washington, https://www.cbr.washington.edu/dart/query/pit_sar_esu. Accessed on 3.15.2025.
-
-3. NOAA Coral Reef Watch. "NOAA Coral Reef Watch Operational Daily Near-Real-Time Global 5-km Satellite Coral Bleaching Monitoring Products." https://coastwatch.pfeg.noaa.gov/erddap/griddap/NOAA_DHW.html. Accessed March 13, 2025. 
-
-4. National Centers for Environmental Information. "Storm Events Database CSV Files." NOAA, https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/. Accessed 3.12.2025.
-     
-5.  NOAA Fisheries. (2024, December 6). 2024 Summary of Ocean Ecosystem Indicators. Science & Data, NOAA Fisheries. Accessed 24 January 2025. <https://tinyurl.com/29wjp8za1>
-
-6. NOAA Fisheries. (2024, August 23). Upper Columbia River Spring-run
-Chinook Salmon. Endangered Species Conservation, NOAA Fisheries.
-Accessed 24 January 2025. <https://tinyurl.com/y3rnr7kh>
-
-7. NOAA Fisheries. (2024, October 28). Salmon and Steelhead Research in the
-Pacific Northwest. Science & Data, NOAA Fisheries. Accessed 24 January
-2025. <https://tinyurl.com/y4jhxrzp>
-
-8. NOAA Fisheries. (2024, December 6). 2024 Summary of Ocean Ecosystem
-Indicators. Science & Data, NOAA Fisheries. Accessed 24 January 2025.
-<https://tinyurl.com/29wjp8za>
-
-9. NOAA Fisheries. (2024, March 19). Oceanography of the Northern
-California Current Study Area. West Coast, NOAA Fisheries. Accessed 24
-January 2025. <https://tinyurl.com/yw6pj5tx>
-
-10. Sutherland, C., Hare, D., Johnson, P. J., Linden, D. W., Montgomery, R. A., & Droge, E. (2023). Practical advice on variable selection and reporting using Akaike information criterion. Proceedings. Biological sciences, 290(2007), 20231261. https://doi.org/10.1098/rspb.2023.1261
-
-Coding Sources:
-
-11. scikit-learn. "KNNImputer — scikit-learn 1.6.1 documentation." https://scikit-learn.org/stable/modules/generated/sklearn.impute.KNNImputer.html. Accessed March 16, 2025.
-
-12. Bobbitt, Z. (2022, March 31). How to Convert Pandas GroupBy Output to DataFrame. Statology. Accessed 27 January 2025. https://www.statology.org/pandas-groupby-to-dataframe/.  
-
-13. Datetime – Basic date and time types. (n.d.). Python Standard Library. Accessed 26 January 2025. https://docs.python.org/3/library/datetime.html  
-
-14. Ebahrim, M. (2023, December 11). Convert CSV to JSON using Python Pandas (Easy Tutorial). Like Geeks. Accessed 26 January 2025. https://likegeeks.com/csv-to-json-python-pandas/  
-
-15. Nelamali, N. (2024, October 31). Python Pandas: Convert JSON to CSV. Spark by Examples. Accessed 26 January 2025. https://sparkbyexamples.com/pandas/python-pandas-convert-json-to-csv/  
-
-16. Pandas API Reference. (n.d.). Pandas. Accessed 26 January 2025. https://pandas.pydata.org/docs/reference/index.html  
-
-17. Pandas Read CSV in Python. (2024, November 21). Geeks for Geeks. Accessed 26 January 2025. https://www.geeksforgeeks.org/python-read-csv-using-pandas-read_csv/.  
-18. Pykes, K. (2024, December 2). Pandas read_csv() Tutorial: Importing Data. Datacamp. Accessed 26 January 2025. https://www.datacamp.com/tutorial/pandas-read-csv  
-19. pandas development team. (n.d.). pandas.DataFrame. Accessed 14 February 2025. https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html  
-
-20. pandas development team. (n.d.). pandas.DataFrame.drop. Accessed 14 February 2025. https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.drop.html  
-
-21. pandas development team. (n.d.). pandas.DataFrame.transpose. Accessed 14 February 2025. https://pandas.pydata.org/pandas-docs/version/1.2/reference/api/pandas.DataFrame.transpose.html  
-
-22. pandas development team. (n.d.). pandas.Series.str.strip. Accessed 14 February 2025. https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.Series.str.strip.html  
-
-23. Stack Overflow. (n.d.). What is the difference between UTF-8 and ISO-8859-1 encodings?. Accessed 14 February 2025. https://stackoverflow.com/questions/7048745/what-is-the-difference-between-utf-8-and-iso-8859-1-encodings  
-
-24. Python Software Foundation. (n.d.). codecs — Codec registry and base classes. Accessed 14 February 2025. https://docs.python.org/3/library/codecs.html  
-
-25. pandas development team. (n.d.). pandas.DataFrame.rename. Accessed 14 February 2025. https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.rename.html  
-
-26. pandas development team. (n.d.). pandas.DataFrame.filter. Accessed 14 February 2025. https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.filter.html  
-
-27. pandas development team. (n.d.). Merge, join, concatenate and compare. Accessed 14 February 2025. https://pandas.pydata.org/docs/user_guide/merging.html
+Model M3 exhibited mild heteroscedasticity in its residuals, warranting cautious interpretation of its coefficient estimates. The marginal SAR result ($p = 0.072$) and the modest $R^2$ of the best-fitting model ($R^2$ = 0.365$) further suggest that important explanatory variables influencing smolt-to-adult return remain unaccounted for. A follow-up study incorporating a broader set of environmental covariates—including copepod species richness and precipitation-related indicators—and a larger, independently sampled dataset would be warranted before drawing management-relevant conclusions.
