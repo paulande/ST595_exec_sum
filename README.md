@@ -11,11 +11,11 @@ This project expands on prior work by Team Nexus (CS512, Oregon State University
 
 ## Repository Contents
 
-- **anderson_final.Rmd**  
-  Primary R Markdown document containing all exploratory data analysis (EDA), assumption checks, hypothesis tests, and linear modeling
-
 - **chinook_SAR_anderson.Rmd**  
-  Supporting R Markdown document
+  Finalized R Markdown document containing all exploratory data analysis (EDA), assumption checks, hypothesis tests, linear modeling, and final type setting.
+
+- **anderson_final.Rmd**  
+  Source R Markdown document containing git changes from original hadoop and spark project.
 
 - **chinook_SAR_anderson.pdf**  
   Rendered PDF report
