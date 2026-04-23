@@ -1,0 +1,557 @@
+---
+title: "Evaluating the Effects of Habitat Designation and Climate on Spring-run Chinook Salmon Return Rates in Upper Columbia River Basin"
+author: "Paul J Anderson"
+date: "`r Sys.Date()`"
+output: # bookdown::pdf_document2 <- try this for figure numbering
+  pdf_document:
+    latex_engine: xelatex
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+# knitr::opts_knit$set(root.dir = "C:\\Users\\paulande\\OneDrive - Oregon State University\\Classes\\2026\\Spring\\ST595_exec_sum\\salmon_report")
+# sets root directory for the knitting process
+
+# packages
+library(ggplot2)
+library(bookdown)
+library(GGally)
+library(tidyr)
+library(knitr)
+library(broom)
+library(backports)
+library(faraway)
+library(MASS)
+library(reshape)
+library(ggExtra)
+library(broom)
+library(car)
+library(dplyr)
+library(reticulate)
+library(tinytex)
+library(kableExtra)
+library(here) # using here to replace the absolute path with relative
+```
+
+```{r}
+# load in data
+# unscrubbed data
+fish_data <- read.csv(here("salmon_report", "fish_data.csv"))
+# climatic_data <- read.csv("climatic_variables_datapull.csv")
+# storm_data <- read.csv("combined_storm_events.csv")
+
+# post dataprep data
+dataprep_data <- read.csv(here("salmon_report", "final_data_post_dataprep.csv"))
+```
+
+```{r}
+# scrubbed data
+final_data <- read.csv(here("salmon_report", "imputed_dataset.csv"))
+```
+
+## Introduction
+
+Declines in fish stocks have cultural, social, economic, and environmental consequences throughout the western United States. Tracking changes in fish abundance provides essential information for the conservation and management of these declining resources. As part of fishery management efforts, state and federal agencies routinely monitor oceanic and freshwater conditions to establish sustainable harvest limits. The National Oceanic and Atmospheric Administration (NOAA) identifies eight ocean indicators as critical for monitoring the health of salmon stocks along the U.S.\ West Coast \cite{ref5}. In particular, the oceanography of the Northern California Current system—including sea surface temperature (SST), coastal upwelling dynamics, and prey availability—plays a central role in determining the marine survival of juvenile salmon during their first year at sea \cite{ref9}. Ongoing research on salmon and steelhead populations in the Pacific Northwest continues to emphasize the complex interactions between ocean conditions and salmonid survival \cite{ref7,ref8}.
+
+Previous studies examined the influence of SST and other oceanographic indicators on the smolt-to-adult return ratio (SAR) of the Upper Columbia Spring-run Chinook Salmon Evolutionarily Significant Unit (ESU) \cite{ref1}. While these studies identified potentially important relationships, statistical power was limited by a relatively short temporal record. The present study builds on this work by extending the analytical timeframe to 1994--2024 and stratifying observations according to whether they occurred before or after the ESU received critical habitat designation under the Endangered Species Act (September~2005) \cite{ref6}. This approach establishes pre- and post-designation comparison periods for assessing changes in biological and environmental conditions.
+
+Mean SAR and juvenile return counts were used as biological response variables and were obtained from the Columbia Basin Research Data Access in Real Time (DART) system \cite{ref2}. Environmental explanatory variables included mean and maximum sea surface temperature for the California Current system, sourced from NOAA’s Northwest Fisheries Science Center \cite{ref3}. Additional climatic covariates were obtained from NOAA’s National Centers for Environmental Information \cite{ref4}. Copepod species richness and regional flooding event data were explored as additional explanatory variables; however, these indicators are reserved for future analyses due to the additional data processing required.
+
+This report addresses three primary research questions. First, whether there is a significant difference in mean SAR and juvenile Chinook returns between pre- and post-designation periods. Second, whether mean SST and maximum SST differ significantly across those same periods. Third, which environmental variables best explain variance in mean SAR beyond what is attributable to ESU designation period alone \cite{ref10}. Given the observational and census-based nature of the available data, results are interpreted as descriptive of trends within the historical record rather than as inferential generalizations to a broader population.
+
+## Methods
+
+### Data
+
+Fish stock, juvenile return, oceanographic, and climatic data were compiled from multiple federal and academic data sources. Fish stock survival data were obtained from the Columbia Basin Research Center’s Data Access in Real Time (DART) system via the smolt-to-adult return (SAR) survival API. Queries were configured to retrieve Bonneville Dam (All) to Bonneville Adult return estimates for Upper Columbia River Spring-run Chinook Salmon ESU, excluding zero-year adult detections, aggregated by release basin, and pooled by return year. Juvenile return counts were retrieved from the same DART resource using parallel filters applied to juvenile outmigrant trap data for the Upper Columbia Basin Spring-run Chinook ESU, spanning the period 1994--2024.
+
+Sea surface temperature (SST) data, including annual mean and maximum values for the California Current system, were sourced from NOAA’s Northwest Fisheries Science Center. SST data were spatially filtered to the extent of the California Current system and temporally aggregated to annual summaries. Additional stochastic climatic variables were obtained from NOAA’s National Centers for Environmental Information; datasets covering 1994--2024 were downloaded, decompressed, and merged using the \texttt{pandas} and \texttt{glob} libraries in Python.
+
+Fish stock data were scrubbed following procedures similar to those employed by Team Nexus \cite{ref1}, retaining the full temporal extent of interest and preserving juvenile return fields. Climatic data were processed using a two-step dataflow implemented in Google Dataprep. The first processing recipe removed extraneous whitespace, standardized data types, removed unused fields, generated year identifiers, classified observations as occurring before or after critical habitat designation for the Evolutionarily Significant Unit (ESU), calculated yearly mean and maximum SST values, and sorted records by year. A second recipe filtered records by year and retained the ESU designation category, mean SST, and maximum SST variables.
+
+Fish stock data were subsequently uploaded to a Google Cloud Storage bucket, and a third Dataprep recipe was used to join the processed climatic variables with the cleaned fish stock dataset. For the purposes of linear modeling, missing values in the response variables (\textit{mean SAR} and \textit{juvenile return}) were addressed through imputation. While imputing response variables is generally discouraged in confirmatory statistical analyses, the extent of missingness and the exploratory nature of this study motivated the use of imputation to avoid substantial reductions in effective sample size.
+
+A K-nearest neighbors (KNN) imputation approach, using mean values derived from the nearest neighboring observations, was selected as appropriate for the structure of the dataset. Imputation was implemented in Python using the \texttt{scikit-learn} library, with neighbor values computed from the Dataprep-processed dataset, following established methodology \cite{ref5}. Subsequent data processing, hypothesis testing, and statistical modeling were conducted using a combination of Python and \textsf{R}, with visualization and regression analyses performed locally.
+
+### Exploratory Data Analysis
+
+Initial evaluation of the cleaned dataset confirmed 31 annual observations spanning 1994--2024, with no remaining missing values and appropriate data types across all six variables. The ESU designation variable reflects an uneven group split, with approximately 12 pre-designation years and 19 post-designation years. Visual inspection of faceted boxplots (Figure~1) indicated unequal variance in juvenile return, maximum SST, and mean SAR, with post-ESU groups exhibiting wider interquartile ranges and longer whiskers. In contrast, mean SST displayed comparatively similar dispersion between designation periods.
+
+Visual assessment of quantile--quantile (Q--Q) plots (Figure~2) and results from Shapiro--Wilk normality tests (Table~1) failed to reject normality for all variables except mean SAR in the pre-ESU group (Shapiro--Wilk $W = 0.845$, $p = 0.032$). The compressed variance and departure from normality observed in mean SAR and juvenile return during the pre-designation period are likely attributable to K-nearest neighbors (KNN) imputation of missing values, which may underrepresent true variability in that group.
+
+Given the observed heterogeneity of variance, unequal group sizes, and normality results, Welch’s two-sample $t$-test was selected over the Student’s $t$-test for all mean comparisons. Results for mean SAR should therefore be interpreted with caution due to the violation of normality assumptions in the pre-ESU group.
+
+Autocorrelation function (ACF) plots (Figure~3) revealed no significant temporal autocorrelation in mean SAR, juvenile return, or mean SST. Maximum SST exhibited a marginal spike at lag~2 that remained within the associated confidence bounds and was noted as a minor limitation, but was not considered sufficient to violate the assumption of independence.
+
+
+```{r, include=FALSE}
+# include false this output
+str(final_data)
+summary(final_data)
+colSums(is.na(final_data))
+```
+
+```{r, include=FALSE}
+final_data
+```
+
+```{r EDA-1, echo = FALSE, fig.cap = "Figure 1. Visual variance check."}
+# reshape to long format for faceting
+fish_long <- final_data |>
+  mutate(esu = factor(esu, labels = c("Pre-ESU", "Post-ESU"))) |>
+  pivot_longer(
+    cols = c(mean_SAR, juvenile_return, max_SST, Mean_SST),
+    names_to = "variable",
+    values_to = "value"
+  )
+
+# plot
+ggplot(fish_long, aes(x = esu, y = value, fill = esu)) +
+  geom_boxplot(alpha = 0.5, outlier.shape = NA) +
+  geom_jitter(width = 0.15, size = 2, alpha = 0.7) +
+  facet_wrap(~ variable, scales = "free_y") +
+  scale_fill_manual(values = c("#2171b5", "#cb181d")) +
+  theme_minimal(base_size = 13)
+```
+```{r EDA-2, echo = FALSE, fig.cap = "Figure 2. Q-Q plots, visual check of normality."}
+# QQ plots
+ggplot(fish_long, aes(sample = value, color = esu)) +
+  stat_qq() +
+  stat_qq_line() +
+  facet_wrap(~ variable, scales = "free") +
+  scale_color_manual(values = c("#2171b5", "#cb181d")) +
+  theme_minimal(base_size = 13)
+```
+```{r EDA-3, echo = FALSE, tbl.cap = "Table 1. Shapiro-wilk test formal test of normality by group."}
+fish_long |>
+  group_by(variable, esu) |>
+  summarize(
+    W       = shapiro.test(value)$statistic,
+    p_value = shapiro.test(value)$p.value,
+    .groups = "drop"
+  ) |>
+  arrange(variable, esu) |>
+  kable(
+    col.names = c("Variable", "ESU Group", "W", "p-value"),
+    caption   = "Table 1. Shapiro-Wilk for test Normality (var. and group)",
+    booktabs = TRUE) |>
+  kable_styling(
+    latex_options = c("striped", "hold_position"),
+    full_width = FALSE
+  )
+```
+
+```{r EDA-4, echo = FALSE, fig.cap = "Figure 3. ACF plots, visual check of independence."}
+par(mfrow = c(2, 2))
+acf(final_data$mean_SAR,        main = "ACF - mean SAR")
+acf(final_data$juvenile_return, main = "ACF - Juvenile Return")
+acf(final_data$max_SST,         main = "ACF - Max SST")
+acf(final_data$Mean_SST,        main = "ACF - Mean SST")
+```
+
+### Models
+
+#### Question 1. 
+Is there a significant difference in the mean Smolt to Adult Return (SAR) and Chinook Juvenile catches between the pre and post listing periods of critical habitat for the Spring-run, Upper Columbia Basin Chinook Salmon? We pose these questions with the following testable hypotheses.
+
+
+$$
+H_0: meanSAR_{pre} = meanSAR_{post}
+$$
+$$
+H_A: meanSAR_{pre} \neq meanSAR_{post}
+$$
+
+$$
+H_0: Juveniles_{pre} = Juveniles_{post}
+$$
+
+$$
+H_A: Juveniles_{pre} \neq Juveniles_{post}
+$$
+
+Welch’s two-sample $t$-tests were conducted to evaluate whether mean smolt-to-adult return (SAR) and juvenile return differed significantly between pre- and post-ESU designation periods. No statistically significant difference was detected in mean SAR between the two periods ($p = 0.072$), although the result approached the conventional significance threshold of $\alpha = 0.05$. Juvenile return similarly showed no significant difference between pre- and post-ESU periods ($p = 0.288$). Accordingly, the null hypothesis was retained for both response variables.
+
+The marginal SAR result ($p = 0.072$) may warrant further investigation with an expanded sample size. Both results should be interpreted cautiously given the K-nearest neighbors (KNN) imputation of missing values during the pre-ESU period and the limited statistical power associated with the available sample size ($n = 31$). Detailed test results are presented in Table~2.
+
+```{r mod-1a, include=FALSE}
+# Q1A: Smolt to Adult Return (SAR)
+sar_test <- t.test(mean_SAR ~ esu, data = final_data, var.equal = FALSE)
+sar_test
+
+# Q1B: Juvenile Return
+juv_test <- t.test(juvenile_return ~ esu, data = final_data, var.equal = FALSE)
+juv_test
+```
+
+```{r mod-1b, echo = FALSE, tbl.cap = "Table 2. Welch Two-Sample t-test Results for Question 1."}
+# create a tidy table
+bind_rows(
+  tidy(sar_test) |> mutate(metric = "SAR"),
+  tidy(juv_test) |> mutate(metric = "Juvenile Return")
+) |>
+transmute(
+    Variable        = metric,
+    `Mean Pre-ESU`  = estimate1,
+    `Mean Post-ESU` = estimate2,
+    `t-statistic`   = statistic,
+    df              = parameter,
+    `p-value`       = p.value,
+    `CI Low`        = conf.low,
+    `CI High`       = conf.high
+) |>
+  kable(digits = 3, caption = "Table 2. Welch Two-Sample t-test Results",
+    booktabs = TRUE) |>
+  kable_styling(
+    latex_options = c("striped", "hold_position"),
+    full_width = FALSE
+  )
+
+```
+
+
+#### Question 2.
+Is there a significant difference in environmental variables such as mean Sea Surface Temperature (mean_SST) and maximum Sea Surface Temperature (max_SST) between the pre and post listing periods of critical habitat for the Spring-run, Upper Columbia Basin Chinook Salmon? We post this question poses the following testable hypotheses.
+
+$$
+H_0: meanSST_{pre} = meanSST_{post}
+$$
+
+$$
+H_A: meanSST_{pre} \neq meanSST_{post}
+$$
+
+$$
+H_0: maxSST_{pre} = maxSST_{post}
+$$
+
+$$
+H_A: maxSST_{pre} \neq maxSST_{post}
+$$
+
+Welch’s two-sample $t$-tests were conducted to evaluate whether mean sea surface temperature (SST) and maximum SST differed significantly between pre- and post-ESU designation periods. No statistically significant difference was detected in mean SST between the two periods ($p = 0.554$). In contrast, maximum SST exhibited a statistically significant difference between pre-ESU ($\bar{X} = 22.366\,^{\circ}\mathrm{C}$) and post-ESU ($\bar{X} = 23.424\,^{\circ}\mathrm{C}$) periods ($t = -2.641$, $df = 27.939$, $p = 0.013$), with post-designation years characterized by notably higher peak sea surface temperatures.
+
+Accordingly, the null hypothesis was retained for mean SST and rejected for maximum SST. The significant difference in maximum SST is notable, as it indicates measurable warming in peak ocean temperatures coincident with the post-designation period; however, the observational nature of this analysis precludes causal inference. Detailed test results are reported in Table~3.
+
+```{r mod-2a, include=FALSE}
+# Q2A: Mean SST
+mSST_test <- t.test(Mean_SST ~ esu, data = final_data, var.equal = FALSE)
+mSST_test
+
+# Q2B: Max SST
+maxSST_test <- t.test(max_SST ~ esu, data = final_data, var.equal = FALSE)
+maxSST_test
+```
+
+
+```{r mod-2b, echo = FALSE, tbl.cap = "Table 3. Welch Two-Sample t-test Results for Question 2."}
+# create a tidy table
+bind_rows(
+  tidy(t.test(Mean_SST ~ esu, data = final_data, var.equal = FALSE)) |> mutate(variable = "Mean_SST"),
+  tidy(t.test(max_SST ~ esu, data = final_data, var.equal = FALSE)) |> mutate(variable = "max_SST")
+) |>
+  select(variable, estimate1, estimate2, statistic, parameter, p.value, conf.low, conf.high) |>
+  mutate(across(where(is.numeric), ~ round(., 3))) |>
+  rename(
+    Variable        = variable,
+    `Mean Pre-ESU`  = estimate1,
+    `Mean Post-ESU` = estimate2,
+    `t-statistic`   = statistic,
+    df              = parameter,
+    `p-value`       = p.value,
+    `CI Low`        = conf.low,
+    `CI High`       = conf.high
+  ) |>
+  kable(
+    caption = "Table 3. Welch's T-test Results for Question 2",
+    booktabs = TRUE) |>
+  kable_styling(
+    latex_options = c("striped", "hold_position"),
+    full_width = FALSE
+  )
+```
+
+#### Question 3. 
+Does sea surface temperature explain variance in mean Smolt to Adult Return (SAR) beyond that accounted for by ESU designation alone?
+
+Model 1: mean SAR explained by ESU designation
+
+$$
+\text{meanSAR} = \beta_0 + \beta_1 \,\text{ESU}
+$$
+$$
+H_0: \beta_1 = 0
+$$
+
+$$
+H_A: \beta_1 \neq 0
+$$
+
+Model 2: mean SAR explained by max SST and ESU designation
+
+$$
+\text{meanSAR} = \beta_0 + \beta_1 \,\text{MaxSST} + \beta_2 \,\text{ESU}
+$$
+$$
+H_0: \beta_1 = 0
+$$
+$$
+H_A: \beta_1 \neq 0
+$$
+Model 3: mean SAR explained by Mean SST and ESU designation
+$$
+\text{meanSAR} = \beta_0 + \beta_1 \,\text{MeanSST} + \beta_2 \,\text{ESU}
+$$
+$$
+H_0: \beta_1 = 0
+$$
+$$
+H_A: \beta_1 \neq 0
+$$
+After fitting the models and prior to interpretation, regression assumptions were evaluated for all three models. Scatterplots of predictors versus the response (Figure~4) indicated a clear negative linear relationship between mean SAR and maximum SST in model M2, and a weaker negative trend with mean SST in model M3, supporting the assumption of linearity. Residuals versus fitted value plots (Figure~5) showed residuals randomly scattered around zero for models M1 and M2, consistent with homoscedasticity. In contrast, model M3 exhibited a mild U-shaped pattern in the residuals, suggesting minor heteroscedasticity and warranting cautious interpretation of its results.
+
+Quantile--quantile (Q--Q) plots (Figure~6) and Shapiro--Wilk tests of residuals (Table~6) failed to reject the assumption of normality for all three models: M1 ($W = 0.972$, $p = 0.578$), M2 ($W = 0.974$, $p = 0.648$), and M3 ($W = 0.985$, $p = 0.936$). Variance inflation factor (VIF) values for models M2 and M3 (Table~7) were well below the conventional threshold of 5, indicating no evidence of problematic multicollinearity among predictors.
+
+Observation~30 appeared as a consistent outlier across all three models and is noted as a potential influence point. Overall, regression assumptions were satisfactorily met for models M1 and M2, while results from model M3 should be interpreted with additional caution due to the presence of mild heteroscedasticity in its residuals.
+
+```{r mod-3a, echo = FALSE}
+# Model 1: Baseline
+m1 <- lm(mean_SAR ~ esu, data = final_data)
+
+# Model 2: max SST + ESU
+m2 <- lm(mean_SAR ~ max_SST + esu, data = final_data)
+
+# Model 3: Mean SST + ESU
+m3 <- lm(mean_SAR ~ Mean_SST + esu, data = final_data)
+```
+
+
+
+```{r mod-3b, echo = FALSE, fig.cap = "Figure 4. Scatterplot of mean SAR vs max SST for Linearity."}
+par(mfrow = c(1, 3))
+plot(final_data$esu, final_data$mean_SAR,
+     main = "M1: mean SAR vs ESU",
+     xlab = "ESU", ylab = "mean SAR")
+
+plot(final_data$max_SST, final_data$mean_SAR,
+     main = "M2: mean SAR vs max SST",
+     xlab = "max SST (°C)", ylab = "mean SAR")
+
+plot(final_data$Mean_SST, final_data$mean_SAR,
+     main = "M3: mean SAR vs Mean SST",
+     xlab = "Mean SST", ylab = "mean SAR")
+```
+
+```{r mod-3c, echo = FALSE, fig.cap = "Figure 5. Residuals vs. fitted plot for Homoscedasticity."}
+par(mfrow = c(1, 3))
+plot(m1, which = 1, main = "M1 Residuals vs Fitted")
+plot(m2, which = 1, main = "M2 Residuals vs Fitted")
+plot(m3, which = 1, main = "M3 Residuals vs Fitted")
+```
+```{r mod-3d, echo = FALSE, fig.cap = "Figure 6. Shapiro-Wilk for Normality of residuals."}
+par(mfrow = c(1, 3))
+plot(m1, which = 2, main = "M1 Q-Q")
+plot(m2, which = 2, main = "M2 Q-Q")
+plot(m3, which = 2, main = "M3 Q-Q")
+```
+
+```{r mod-3e, echo = FALSE, tbl.cap = "Table 4. Shapiro-Wilk for Normality of residuals."}
+data.frame(
+  Model   = c("M1: ESU only", "M2: max_SST + ESU", "M3: Mean_SST + ESU"),
+  W       = round(c(shapiro.test(residuals(m1))$statistic,
+                    shapiro.test(residuals(m2))$statistic,
+                    shapiro.test(residuals(m3))$statistic), 3),
+  p_value = round(c(shapiro.test(residuals(m1))$p.value,
+                    shapiro.test(residuals(m2))$p.value,
+                    shapiro.test(residuals(m3))$p.value), 3)
+) %>%
+  kable(col.names = c("Model", "W", "p-value"),
+        caption   = "Table 4. Shapiro-Wilk Tests of Normality",
+        bootabs = TRUE) |>
+  kable_styling(latex_options = c("striped", "hold_position"),
+                full_width = FALSE)
+```
+
+
+```{r mod-3f, echo = FALSE, fig.cap = "Figure 7. VIF for Model 2 and 3 (Model 1 has one predictor)."}
+extract_vif <- function(model, model_name) {
+  v <- vif(model)
+
+  if (is.matrix(v)) {
+    as.data.frame(v) |>
+      rownames_to_column("Predictor") |>
+      transmute(
+        Model,
+        Predictor,
+        VIF = `GVIF^(1/(2*Df))`
+      ) |>
+      mutate(Model = model_name)
+  } else {
+    tibble(
+      Model = model_name,
+      Predictor = names(v),
+      VIF = as.numeric(v)
+    )
+  }
+}
+
+vif_table <- bind_rows(
+  extract_vif(m2, "M2"),
+  extract_vif(m3, "M3")
+) |>
+  mutate(VIF = round(VIF, 3))
+
+vif_table |>
+  kable(
+    caption  = "Table 7. VIF M2 and M3",
+    booktabs = TRUE,
+    align    = "llc"
+  ) |>
+  kable_styling(
+    latex_options = c("striped", "hold_position"),
+    full_width = FALSE
+  ) |>
+  row_spec(which(vif_table$VIF > 5), bold = TRUE)
+```
+
+```{r mod-3g, include=FALSE}
+# Summaries
+summary(m1)
+summary(m2)
+summary(m3)
+
+# AIC and BIC comparison
+AIC(m1, m2, m3)
+BIC(m1, m2, m3)
+```
+
+Model performance was evaluated using R^2, adjusted R^2, AIC, and BIC (Table 5). The baseline model (M1: ESU only) explained little variance in mean SAR (R^2 = 0.087, Adj.R^2 = 0.056) and produced the highest AIC (57.418) and BIC (61.720) of the three models, indicating poor fit. The addition of max SST to the baseline (M2) substantially improved explanatory power (R^2 = 0.365, Adj.R^2 = 0.319), representing a four-fold increase over M1, and produced the lowest AIC (48.187) and BIC (53.923) of all models. The addition of Mean SST (M3) similarly improved fit over the baseline (R^2 = 0.310, Adj.R^2 = 0.260, AIC = 50.753, BIC = 56.489), though performance was weaker than M2 across all metrics. The AIC difference between M2 and M3 exceeded 2 units, providing meaningful evidence in favor of M2 as the most parsimonious model. Taken together, these results indicate that max SST explains meaningful variance in mean SAR beyond ESU designation alone, while Mean SST provides a weaker but still informative contribution. (Table 5)
+
+```{r mod-3h, echo = FALSE, tbl.cap = "Table 5. Model comparisons (R^2, AIC, BIC)."}
+model_comparison <- data.frame(
+  Model       = c("M1: ESU only", "M2: max_SST + ESU", "M3: Mean_SST + ESU"),
+  R2          = round(c(summary(m1)$r.squared, 
+                        summary(m2)$r.squared, 
+                        summary(m3)$r.squared), 3),
+  Adj_R2      = round(c(summary(m1)$adj.r.squared, 
+                        summary(m2)$adj.r.squared, 
+                        summary(m3)$adj.r.squared), 3),
+  AIC         = round(AIC(m1, m2, m3)$AIC, 3),
+  BIC         = round(BIC(m1, m2, m3)$BIC, 3)
+)
+
+kable(model_comparison,
+    col.names = c("Model", "R^2", "Adj. R^2", "AIC", "BIC"),
+    caption   = "Table 5. Model comparisons (R^2, AIC, BIC)",
+    booktabs = TRUE,
+    align    = "llc"
+  ) |>
+kable_styling(
+    latex_options = c("striped", "hold_position"),
+    full_width = FALSE)
+```
+
+## Results
+
+\subsection*{Question 1: Biological Response Variables}
+
+Welch’s two-sample $t$-tests were conducted to evaluate whether mean smolt-to-adult return (SAR) and juvenile return differed significantly between pre and post-ESU designation periods. No statistically significant difference was observed in mean SAR between the pre-ESU ($\bar{x} = 1.192$) and post-ESU ($\bar{x} = 1.543$) periods ($t = -1.866$, $df = 28.891$, $p = 0.072$), although the result approached the conventional significance threshold of $\alpha = 0.05$. Juvenile return showed no statistically significant difference between the pre-ESU ($\bar{x} = 2001.755$) and post-ESU ($\bar{x} = 2430.632$) periods ($t = -1.086$, $df = 24.922$, $p = 0.288$). Therefore, the null hypothesis was retained for both biological response variables (Table~2). These findings should be interpreted cautiously given the use of K-nearest neighbors (KNN) imputation for missing values during the pre-ESU period and the limited statistical power associated with the available sample size ($n = 31$).
+
+\subsection*{Question 2: Environmental Variables}
+
+Welch’s two-sample $t$-tests were also conducted to assess whether mean sea surface temperature (SST) and maximum SST differed significantly between designation periods. No statistically significant difference was detected in mean SST between the pre-ESU ($\bar{x} = -0.105$) and post-ESU ($\bar{x} = 0.020$) periods ($t = -0.599$, $df = 27.620$, $p = 0.554$). In contrast, maximum SST differed significantly between the pre-ESU ($\bar{x} = 22.366\,^{\circ}\mathrm{C}$) and post-ESU ($\bar{x} = 23.424\,^{\circ}\mathrm{C}$) periods ($t = -2.641$, $df = 27.939$, $p = 0.013$), with post-designation years exhibiting higher peak sea surface temperatures. The null hypothesis was therefore retained for mean SST and rejected for maximum SST (Table~3). This result indicates measurable warming in peak ocean temperature coincident with the post-designation period, though the observational nature of the analysis precludes causal inference.
+
+\subsection*{Question 2C: Linear Model Comparison}
+
+Three linear regression models were fit to evaluate whether sea surface temperature explains variance in mean SAR beyond ESU designation period alone. The baseline model (M1), which included only ESU designation as a predictor, explained little variance in mean SAR ($R^2 = 0.087$, Table~5), and ESU failed to reach statistical significance ($\beta_1 = 0.352$, $p = 0.107$), suggesting that designation period alone is insufficient to explain variation in smolt-to-adult return rates.
+
+The inclusion of maximum sea surface temperature in model M2 substantially improved model fit ($R^2 = 0.365$, adjusted $R^2 = 0.319$, Table~5), with both maximum SST ($\beta_1 = -0.273$, $p = 0.002$) and ESU designation ($\beta_2 = 0.640$, $p = 0.003$) emerging as statistically significant predictors. The negative coefficient associated with maximum SST implies that each $1\,^{\circ}\mathrm{C}$ increase in peak sea surface temperature is associated with a decrease of 0.273 in mean SAR, holding ESU designation constant—an ecologically meaningful result consistent with documented thermal stress effects on juvenile salmon during early ocean residence \cite{ref7}.
+
+The addition of mean SST in model M3 also improved model fit relative to the baseline ($R^2 = 0.310$, adjusted $R^2 = 0.260$, Table~5), with both mean SST ($\beta_1 = -0.472$, $p = 0.006$) and ESU designation ($\beta_2 = 0.411$, $p = 0.038$) statistically significant. However, overall model performance was weaker than that of M2 across all evaluation metrics. Scatterplots of mean SAR against both SST predictors (Figure~4) visually supported the negative linear relationships identified in models M2 and M3.
+
+Model comparison using Akaike and Bayesian information criteria (AIC and BIC; Table~5) identified M2 as the best-fitting and most parsimonious model, with an AIC difference exceeding 2 units relative to M3 and 9 units relative to M1 \cite{ref10}. Consequently, the null hypothesis that sea surface temperature explains no variance in mean SAR beyond ESU designation alone was rejected for both M2 and M3, with maximum SST identified as the stronger environmental predictor.
+ 
+## Discussion
+
+Our data suggest continued support for a statistically significant flatlining of recovery in the focal Evolutionarily Significant Unit (ESU), despite nearly 20 years of protection under the Endangered Species Act (ESA) and accompanying critical habitat designation \cite{ref4}. Early exploratory models showed some promise, with $R^2$ values ranging from approximately $0.50$ to $0.90$ after accounting for model complexity, in explaining the combined influence of climatic variables and prey availability on salmon recovery. However, none of these models were statistically significant ($p > 0.05$). Consequently, the present study was used to expand the available dataset where possible in order to assess the statistical power of these findings and gain deeper insight into the persistent challenges facing this salmon population \cite{ref1}.
+
+We expanded our analyses across two temporal periods, 1994--2005 and 2006--2024, corresponding to the years before and after critical habitat designation for Spring-run Chinook Salmon in the Columbia River Basin \cite{ref3}. These analyses confirmed no statistically significant change in Chinook Salmon smolt-to-adult return (SAR) rates across designation periods, a pattern further supported by the absence of significant differences in juvenile return rates. In contrast, a statistically significant difference was detected in annual maximum sea surface temperature (Max SST) between periods \cite{ref2}. A prior study also identified a marginally significant difference in copepod species richness along the U.S.\ West Coast, an indicator we intend to revisit in future analyses. In addition, a cursory examination of flooding event data was conducted, with more detailed analysis planned as additional data become available. Further data processing and modeling were undertaken to explore these patterns and assess potential relationships among environmental and biological variables.
+
+Prior to model fitting, assumptions of linearity, normality, and homoscedasticity were evaluated and deemed acceptable. Multiple linear regression models were then fit, yielding corresponding $R^2$ values. Model performance was further evaluated using Akaike Information Criterion (AIC) and Bayesian Information Criterion (BIC), both of which supported the relative fit of the selected model structures. Despite this, the overall regression models were not statistically significant (Model~1: $p = 0.4288$; Model~2: $p = 0.107$), suggesting limited inferential power given the available sample size. These results indicate that increasing the temporal or spatial scope of the dataset may improve the statistical resolution of these relationships. Although no definitive patterns emerged, the consistency among $R^2$, AIC, and BIC metrics supports continued investigation into the environmental drivers of SAR variability \cite{ref7}.
+
+Linear modeling confirmed that ESU designation alone explains little variance in mean SAR ($R^2 = 0.087$, $p = 0.107$). The addition of maximum sea surface temperature as a covariate substantially improved model fit ($R^2 = 0.365$, AIC $= 48.187$), with maximum SST emerging as a significant negative predictor of mean SAR ($\beta_1 = -0.273$, $p = 0.002$), identifying peak ocean thermal conditions as a more informative predictor of smolt-to-adult survival than designation period alone. Model comparison using Akaike and Bayesian information criteria (AIC and BIC) confirmed M2 as the most parsimonious model.
+
+Prior work identified marginally significant variation in copepod species richness along the U.S. West Coast as a potentially informative ecological indicator, while full analysis is not present in this report, both factors warrant further investigation in future analyses.
+
+Several limitations should be considered when interpreting these results. The dataset comprises 31 annual observations representing a census of available records rather than a random sample, which constrains the inferential scope of reported $p$-values and confidence intervals to the observed time series. The uneven group split of approximately 12 pre-designation and 19 post-designation years reduces statistical power in the pre-ESU period, increasing the risk of Type II error. In addition, reliance on annual means was necessitated by limited availability of the response variable, mean SAR, at finer temporal resolution.
+
+K-nearest neighbors (KNN) imputation of missing values in mean SAR and juvenile return during the pre-designation period introduced artificial compression of variance, contributing to the observed violation of normality in mean SAR prior to designation (Shapiro--Wilk $W = 0.845$, $p = 0.032$) and limiting confidence in associated $t$-test results. The annual time-series structure of the data also introduces potential temporal confounding, as observed differences between designation periods may partially reflect secular environmental trends rather than effects attributable to ESU designation itself.
+
+Model M3 exhibited mild heteroscedasticity in its residuals, warranting cautious interpretation of its coefficient estimates. The marginal SAR result ($p = 0.072$) and the modest $R^2$ of the best-fitting model ($R^2 = 0.365$) further suggest that important explanatory variables influencing smolt-to-adult return remain unaccounted for. A follow-up study incorporating a broader set of environmental covariates—including copepod species richness and precipitation-related indicators—and a larger, independently sampled dataset would be warranted before drawing management-relevant conclusions.
+
+References:
+
+1.  Anderson, P., Hughes, R., Team Nexus Data Wrangling Project. Oregon State University. CS512. Winter 2025. "Climate & Salmon: Assessing the Impact of Critical Habitat Designation, Climate Variables, and Food Availability on Smolt-to-Adult Return Rates for Spring-Run Chinook Salmon in Upper Columbia River Basin." Accessed 14 February 2025. https://tinyurl.com/2p8b6f3k
+
+2. Columbia Basin Research. "DART PIT Tag Columbia Basin ESU & DPS Smolt-to-Adult Return (SAR) Survival." Columbia Basin Research, University of Washington, https://www.cbr.washington.edu/dart/query/pit_sar_esu. Accessed on 3.15.2025.
+
+3. NOAA Coral Reef Watch. "NOAA Coral Reef Watch Operational Daily Near-Real-Time Global 5-km Satellite Coral Bleaching Monitoring Products." https://coastwatch.pfeg.noaa.gov/erddap/griddap/NOAA_DHW.html. Accessed March 13, 2025. 
+
+4. National Centers for Environmental Information. "Storm Events Database CSV Files." NOAA, https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/. Accessed 3.12.2025.
+     
+5.  NOAA Fisheries. (2024, December 6). 2024 Summary of Ocean Ecosystem Indicators. Science & Data, NOAA Fisheries. Accessed 24 January 2025. <https://tinyurl.com/29wjp8za1>
+
+6. NOAA Fisheries. (2024, August 23). Upper Columbia River Spring-run
+Chinook Salmon. Endangered Species Conservation, NOAA Fisheries.
+Accessed 24 January 2025. <https://tinyurl.com/y3rnr7kh>
+
+7. NOAA Fisheries. (2024, October 28). Salmon and Steelhead Research in the
+Pacific Northwest. Science & Data, NOAA Fisheries. Accessed 24 January
+2025. <https://tinyurl.com/y4jhxrzp>
+
+8. NOAA Fisheries. (2024, December 6). 2024 Summary of Ocean Ecosystem
+Indicators. Science & Data, NOAA Fisheries. Accessed 24 January 2025.
+<https://tinyurl.com/29wjp8za>
+
+9. NOAA Fisheries. (2024, March 19). Oceanography of the Northern
+California Current Study Area. West Coast, NOAA Fisheries. Accessed 24
+January 2025. <https://tinyurl.com/yw6pj5tx>
+
+10. Sutherland, C., Hare, D., Johnson, P. J., Linden, D. W., Montgomery, R. A., & Droge, E. (2023). Practical advice on variable selection and reporting using Akaike information criterion. Proceedings. Biological sciences, 290(2007), 20231261. https://doi.org/10.1098/rspb.2023.1261
+
+Coding Sources:
+
+11. scikit-learn. "KNNImputer — scikit-learn 1.6.1 documentation." https://scikit-learn.org/stable/modules/generated/sklearn.impute.KNNImputer.html. Accessed March 16, 2025.
+
+12. Bobbitt, Z. (2022, March 31). How to Convert Pandas GroupBy Output to DataFrame. Statology. Accessed 27 January 2025. https://www.statology.org/pandas-groupby-to-dataframe/.  
+
+13. Datetime – Basic date and time types. (n.d.). Python Standard Library. Accessed 26 January 2025. https://docs.python.org/3/library/datetime.html  
+
+14. Ebahrim, M. (2023, December 11). Convert CSV to JSON using Python Pandas (Easy Tutorial). Like Geeks. Accessed 26 January 2025. https://likegeeks.com/csv-to-json-python-pandas/  
+
+15. Nelamali, N. (2024, October 31). Python Pandas: Convert JSON to CSV. Spark by Examples. Accessed 26 January 2025. https://sparkbyexamples.com/pandas/python-pandas-convert-json-to-csv/  
+
+16. Pandas API Reference. (n.d.). Pandas. Accessed 26 January 2025. https://pandas.pydata.org/docs/reference/index.html  
+
+17. Pandas Read CSV in Python. (2024, November 21). Geeks for Geeks. Accessed 26 January 2025. https://www.geeksforgeeks.org/python-read-csv-using-pandas-read_csv/.  
+18. Pykes, K. (2024, December 2). Pandas read_csv() Tutorial: Importing Data. Datacamp. Accessed 26 January 2025. https://www.datacamp.com/tutorial/pandas-read-csv  
+19. pandas development team. (n.d.). pandas.DataFrame. Accessed 14 February 2025. https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html  
+
+20. pandas development team. (n.d.). pandas.DataFrame.drop. Accessed 14 February 2025. https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.drop.html  
+
+21. pandas development team. (n.d.). pandas.DataFrame.transpose. Accessed 14 February 2025. https://pandas.pydata.org/pandas-docs/version/1.2/reference/api/pandas.DataFrame.transpose.html  
+
+22. pandas development team. (n.d.). pandas.Series.str.strip. Accessed 14 February 2025. https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.Series.str.strip.html  
+
+23. Stack Overflow. (n.d.). What is the difference between UTF-8 and ISO-8859-1 encodings?. Accessed 14 February 2025. https://stackoverflow.com/questions/7048745/what-is-the-difference-between-utf-8-and-iso-8859-1-encodings  
+
+24. Python Software Foundation. (n.d.). codecs — Codec registry and base classes. Accessed 14 February 2025. https://docs.python.org/3/library/codecs.html  
+
+25. pandas development team. (n.d.). pandas.DataFrame.rename. Accessed 14 February 2025. https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.rename.html  
+
+26. pandas development team. (n.d.). pandas.DataFrame.filter. Accessed 14 February 2025. https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.filter.html  
+
+27. pandas development team. (n.d.). Merge, join, concatenate and compare. Accessed 14 February 2025. https://pandas.pydata.org/docs/user_guide/merging.html
