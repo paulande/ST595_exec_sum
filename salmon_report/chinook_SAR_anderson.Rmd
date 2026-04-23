@@ -100,7 +100,7 @@ colSums(is.na(final_data))
 final_data
 ```
 
-```{r EDA-1, echo = FALSE, fig.cap = "Figure 1. Visual variance check."}
+```{r EDA-1, echo = FALSE, fig.cap = "Visual variance check."}
 # reshape to long format for faceting
 fish_long <- final_data |>
   mutate(esu = factor(esu, labels = c("Pre-ESU", "Post-ESU"))) |>
@@ -121,7 +121,7 @@ fig1 <- ggplot(fish_long, aes(x = esu, y = value, fill = esu)) +
 print(fig1)
 ```
 
-```{r EDA-2, echo = FALSE, fig.cap = "Figure 2. Q-Q plots, visual check of normality."}
+```{r EDA-2, echo = FALSE, fig.cap = "Q-Q plots, visual check of normality."}
 # QQ plots
 fig2 <- ggplot(fish_long, aes(sample = value, color = esu)) +
   stat_qq() +
@@ -133,7 +133,7 @@ fig2 <- ggplot(fish_long, aes(sample = value, color = esu)) +
 print(fig2)
 ```
 
-```{r EDA-3, echo = FALSE, tbl.cap = "Table 1. Shapiro-wilk test formal test of normality by group."}
+```{r EDA-3, echo = FALSE, tbl.cap = "Shapiro-wilk test formal test of normality by group."}
 fish_long |>
   group_by(variable, esu) |>
   summarize(
@@ -144,7 +144,7 @@ fish_long |>
   arrange(variable, esu) |>
   kable(
     col.names = c("Variable", "ESU Group", "W", "p-value"),
-    caption   = "Table 1. Shapiro-Wilk for test Normality (var. and group)",
+    caption   = "Shapiro-Wilk for test Normality (var. and group)",
     booktabs = TRUE) |>
   kable_styling(
     latex_options = c("striped", "hold_position"),
@@ -152,7 +152,7 @@ fish_long |>
   )
 ```
 
-```{r EDA-4, echo = FALSE, fig.cap = "Figure 3. ACF plots, visual check of independence."}
+```{r EDA-4, echo = FALSE, fig.cap = "ACF plots, visual check of independence."}
 par(mfrow = c(2, 2))
 acf(final_data$mean_SAR,        main = "ACF - mean SAR")
 acf(final_data$juvenile_return, main = "ACF - Juvenile Return")
@@ -195,7 +195,7 @@ juv_test <- t.test(juvenile_return ~ esu, data = final_data, var.equal = FALSE)
 juv_test
 ```
 
-```{r mod-1b, echo = FALSE, tbl.cap = "Table 2. Welch Two-Sample t-test Results for Question 1."}
+```{r mod-1b, echo = FALSE, tbl.cap = "Welch Two-Sample t-test Results for Question 1."}
 # create a tidy table
 bind_rows(
   tidy(sar_test) |> mutate(metric = "SAR"),
@@ -211,7 +211,7 @@ transmute(
     `CI Low`        = conf.low,
     `CI High`       = conf.high
 ) |>
-  kable(digits = 3, caption = "Table 2. Welch Two-Sample t-test Results",
+  kable(digits = 3, caption = "Welch Two-Sample t-test Results",
     booktabs = TRUE) |>
   kable_styling(
     latex_options = c("striped", "hold_position"),
@@ -255,7 +255,7 @@ maxSST_test
 ```
 
 
-```{r mod-2b, echo = FALSE, tbl.cap = "Table 3. Welch Two-Sample t-test Results for Question 2."}
+```{r mod-2b, echo = FALSE, tbl.cap = "Welch Two-Sample t-test Results for Question 2."}
 # create a tidy table
 bind_rows(
   tidy(t.test(Mean_SST ~ esu, data = final_data, var.equal = FALSE)) |> mutate(variable = "Mean_SST"),
@@ -274,7 +274,7 @@ bind_rows(
     `CI High`       = conf.high
   ) |>
   kable(
-    caption = "Table 3. Welch's T-test Results for Question 2",
+    caption = "Welch's T-test Results for Question 2",
     booktabs = TRUE) |>
   kable_styling(
     latex_options = c("striped", "hold_position"),
@@ -338,7 +338,7 @@ m3 <- lm(mean_SAR ~ Mean_SST + esu, data = final_data)
 
 
 
-```{r mod-3b, echo = FALSE, fig.cap = "Figure 4. Scatterplot of mean SAR vs max SST for Linearity."}
+```{r mod-3b, echo = FALSE, fig.cap = "Scatterplot of mean SAR vs max SST for Linearity."}
 par(mfrow = c(1, 3))
 plot(final_data$esu, final_data$mean_SAR,
      main = "M1: mean SAR vs ESU",
@@ -353,7 +353,7 @@ plot(final_data$Mean_SST, final_data$mean_SAR,
      xlab = "Mean SST", ylab = "mean SAR")
 ```
 
-```{r mod-3c, echo = FALSE, fig.cap = "Figure 5. Residuals vs. fitted plot for Homoscedasticity."}
+```{r mod-3c, echo = FALSE, fig.cap = "Residuals vs. fitted plot for Homoscedasticity."}
 par(mfrow = c(1, 3))
 plot(m1, which = 1, main = "M1 Residuals vs Fitted")
 plot(m2, which = 1, main = "M2 Residuals vs Fitted")
@@ -362,7 +362,7 @@ plot(m3, which = 1, main = "M3 Residuals vs Fitted")
 par(mfrow = c(1, 1))  # reset!
 ```
 
-```{r mod-3d, echo = FALSE, fig.cap = "Figure 6. Shapiro-Wilk for Normality of residuals."}
+```{r mod-3d, echo = FALSE, fig.cap = "Shapiro-Wilk for Normality of residuals."}
 par(mfrow = c(1, 3))
 plot(m1, which = 2, main = "M1 Q-Q")
 plot(m2, which = 2, main = "M2 Q-Q")
@@ -371,7 +371,7 @@ plot(m3, which = 2, main = "M3 Q-Q")
 par(mfrow = c(1, 1))  # reset!
 ```
 
-```{r mod-3e, echo = FALSE, tbl.cap = "Table 4. Shapiro-Wilk for Normality of residuals."}
+```{r mod-3e, echo = FALSE, tbl.cap = "Shapiro-Wilk for Normality of residuals."}
 data.frame(
   Model   = c("M1: ESU only", "M2: max_SST + ESU", "M3: Mean_SST + ESU"),
   W       = round(c(shapiro.test(residuals(m1))$statistic,
@@ -382,14 +382,14 @@ data.frame(
                     shapiro.test(residuals(m3))$p.value), 3)
 ) %>%
   kable(col.names = c("Model", "W", "p-value"),
-        caption   = "Table 4. Shapiro-Wilk Tests of Normality",
+        caption   = "Shapiro-Wilk Tests of Normality",
         bootabs = TRUE) |>
   kable_styling(latex_options = c("striped", "hold_position"),
                 full_width = FALSE)
 ```
 
 
-```{r mod-3f, echo = FALSE, tbl.cap = "Figure 7. VIF for Model 2 and 3 (Model 1 has one predictor)."}
+```{r mod-3f, echo = FALSE, tbl.cap = "VIF for Model 2 and 3 (Model 1 has one predictor)."}
 extract_vif <- function(model, model_name) {
   v <- vif(model)
 
@@ -419,7 +419,7 @@ vif_table <- bind_rows(
 
 vif_table |>
   kable(
-    caption  = "Table 7. VIF M2 and M3",
+    caption  = "VIF M2 and M3",
     booktabs = TRUE,
     align    = "llc"
   ) |>
@@ -443,7 +443,7 @@ BIC(m1, m2, m3)
 
 Model performance was evaluated using $R^2$, adjusted $R^2$, AIC, and BIC (Table 5). The baseline model (M1: ESU only) explained little variance in mean SAR ($R^2$ = 0.087, Adj.$R^2$ = 0.056) and produced the highest AIC (57.418) and BIC (61.720) of the three models, indicating poor fit. The addition of max SST to the baseline (M2) substantially improved explanatory power ($R^2$ = 0.365, Adj.$R^2$ = 0.319), representing a four-fold increase over M1, and produced the lowest AIC (48.187) and BIC (53.923) of all models. The addition of Mean SST (M3) similarly improved fit over the baseline ($R^2$ = 0.310, Adj.$R^2$ = 0.260, AIC = 50.753, BIC = 56.489), though performance was weaker than M2 across all metrics. The AIC difference between M2 and M3 exceeded 2 units, providing meaningful evidence in favor of M2 as the most parsimonious model. Taken together, these results indicate that max SST explains meaningful variance in mean SAR beyond ESU designation alone, while Mean SST provides a weaker but still informative contribution. (Table 5)
 
-```{r mod-3h, echo = FALSE, tbl.cap = "Table 5. Model comparisons ($R^2$, AIC, BIC)."}
+```{r mod-3h, echo = FALSE, tbl.cap = "Model comparisons ($R^2$, AIC, BIC)."}
 model_comparison <- data.frame(
   Model       = c("M1: ESU only", "M2: max_SST + ESU", "M3: Mean_SST + ESU"),
   R2          = round(c(summary(m1)$r.squared, 
@@ -467,7 +467,6 @@ kable_styling(
   latex_options = c("striped", "hold_position"),
   full_width = FALSE
 )
-
 ```
 
 ## Results
