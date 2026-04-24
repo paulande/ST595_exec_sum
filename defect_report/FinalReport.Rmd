@@ -1,0 +1,425 @@
+---
+title: "Sensor Signal Analysis for Predicting Semiconductor Manufacturing Defects"
+subtitle: Paul J Anderson
+output:
+  pdf_document: default
+  html_notebook: default
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+library(tidyverse)
+library(ggplot2)
+library(caret)
+library(tidymodels)
+library(vip)
+library(dplyr)
+library(tidyr)
+```
+
+# Project Overview
+
+This project uses data from the SECOM manufacturing dataset, originally collected for fault detection in a semiconductor manufacturing process. The dataset contains 1567 observations and 590 sensor variables, plus a binary response column indicating whether a product passed (0) or failed (1) quality control. Each row represents a product measured at a specific stage in the manufacturing pipeline.
+
+Our goal is to understand what sensor patterns contribute to product failure and build a predictive model to help anticipate faulty production.
+
+## Research Questions
+
+We address the following questions:
+
+Explanatory Question:
+Which sensors are most predictive of a product's failure, and how do sensor readings vary between passed and failed units?
+
+Predictive Question:
+Can we build a classification model (e.g., logistic regression) to predict whether a unit will fail, based on key sensor readings?
+
+## Data Import and Cleaning
+
+Here we import the dataset from a csv downloaded from kaggle.
+
+```{r}
+secom <- read_csv("C:/Users/ander/OneDrive - Oregon State University/Classes/2025/Spring/ST518/M9/uci-secom.csv")
+```
+
+We take a glimpse at the structure of the data.
+```{r}
+head(secom)
+colnames(secom)
+```
+
+And check for missing values.
+```{r}
+missing_counts <- colSums(is.na(secom))
+summary(missing_counts)
+```
+
+We visualize the missing values for each sensor.
+```{r}
+missing_df <- data.frame(
+  Sensor = seq_along(missing_counts),
+  Missing = missing_counts
+)
+
+ggplot(missing_df, aes(x = Sensor, y = Missing)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
+  labs(title = "Missing Values per Sensor",
+       x = "Sensor Index",
+       y = "Count of Missing Values") +
+  theme_minimal()
+```
+
+
+It appears we have several sensors missing over 10% of their data values (missing values >= 150). We set this as a cutoff and list these sensors.
+```{r}
+missing_over_150 <- missing_counts[missing_counts > 150]
+
+# convert to data frame for viewing
+missing_df <- data.frame(
+  Sensor = names(missing_over_150),
+  MissingValues = missing_over_150
+)
+
+# view the result
+print(missing_df)
+```
+
+We find that 52 sensors out of 590 have above the missing threshold. We visualize this.
+```{r}
+ggplot(missing_df, aes(x = Sensor, y = MissingValues)) +
+  geom_bar(stat = "identity", fill = "tomato") +
+  labs(title = "Sensors with >250 Missing Values",
+       x = "Sensor",
+       y = "Number of Missing Values") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+```
+
+For the purpose of expedience, we choose to remove these sensor data, which is less than 10% of the overall data. It is crucial to mention that context is important and these variables can be revisited in the case that our model struggles with predictive classification in their absence.
+
+It's important that we clean the data in the right order, we want to remove columns that are missing > 10% of their datapoints and then remove rows with NA values. This way we preserve as much data as possible in our dataset.
+```{r}
+# drop columns with >150 missing values
+secom_dcolumns <- secom %>%
+  select(where(~ sum(is.na(.)) <= 150))
+
+# drop rows with any remaining NA values
+secom_drows <- secom_dcolumns %>%
+  drop_na()
+```
+
+Next let's double check the removal of columns and rows.
+```{r}
+cat("Original rows:", nrow(secom), "\n")
+cat("Original columns:", ncol(secom), "\n")
+cat("Rows after filtering:", nrow(secom_drows), "\n")
+cat("Columns after filtering:", ncol(secom_drows), "\n")
+```
+Let's check to ensure that Time and Pass/Fail remain in the dataset.
+```{r}
+"Time" %in% names(secom_drows)
+"Pass/Fail" %in% names(secom_drows)
+```
+Next let's clean up the Pass/Fail attribute to ensure it's ready for our logistic regression.
+```{r}
+# convert -1 to 0 and 1 stays as 1
+secom_response <- secom_drows %>%
+  mutate(`Pass/Fail` = ifelse(`Pass/Fail` == -1, 0, 1))
+
+# check the result
+table(secom_response$`Pass/Fail`)
+
+secom_response <- secom_drows %>%
+  rename(Label = `Pass/Fail`)
+
+# check our work
+names(secom_response)
+ncol(secom_response)
+```
+Remove for zero variance columns.
+```{r}
+# Identify columns with zero variance (TRUE = zero variance)
+zero_var_cols <- sapply(secom_response, function(x) var(x, na.rm = TRUE) == 0)
+
+# Remove those columns (keep columns where zero_var_cols == FALSE)
+secom_ready <- secom_response[, !zero_var_cols]
+```
+
+Verify the total amount of data removed.
+```{r}
+ncol(secom_ready)
+nrow(secom_ready)
+
+#ncol/oncol*100
+424/540*100
+```
+
+
+## Planned Methodology
+
+Here we split into Train and Test sets.
+```{r}
+set.seed(1187)  # for reproducibility
+
+# create data partition, assuming 'Label' is your target
+trainIndex <- createDataPartition(secom_ready$Label, p = 0.8, list = FALSE)
+train_data <- secom_ready[trainIndex, ]
+test_data <- secom_ready[-trainIndex, ]
+```
+
+424 features with 1393 observations need dimensional reduction.
+```{r}
+# Remove non-numeric columns if any, like 'Time' or 'Label' before PCA
+numeric_data <- train_data[, sapply(train_data, is.numeric)]
+pca <- prcomp(numeric_data, scale. = TRUE)
+
+# Check how much variance each PC explains
+summary(pca)
+
+# You can select PCs that explain, say, 90% of the variance
+```
+
+Here we visualize the proportion of variance explained.
+```{r}
+# Calculate proportion of variance explained
+var_explained <- pca$sdev^2 / sum(pca$sdev^2)
+
+# Basic scree plot
+barplot(var_explained, names.arg = 1:length(var_explained),
+        xlab = "Principal Component",
+        ylab = "Proportion of Variance Explained",
+        main = "Scree Plot",
+        col = "steelblue")
+```
+And the proportion of variance explained by only the first 221 variables.
+```{r}
+var_explained <- pca$sdev^2 / sum(pca$sdev^2)
+
+# Plot only first 22 PCs
+barplot(var_explained[1:221], names.arg = 1:221,
+        xlab = "Principal Component",
+        ylab = "Proportion of Variance Explained",
+        main = "Scree Plot (First 22 PCs)",
+        col = "steelblue")
+```
+Here we check the number of variables required to hit the advised 70% cumulative variance explained.
+```{r}
+cum_var <- cumsum(var_explained[1:58])
+
+plot(cum_var, type = "b", pch = 19, col = "darkred",
+     xlab = "Number of Principal Components",
+     ylab = "Cumulative Variance Explained",
+     main = "Cumulative Variance Explained (First 22 PCs)")
+abline(h = 0.7, col = "blue", lty = 2)  # 70% threshold
+```
+```{r}
+table(train_data$Label)
+```
+
+As observed, the dataset is highly imbalanced, so it’s important to use ROC and AUC as evaluation metrics. We're still addressing the challenges posed by class imbalance and the limited number of failure cases—only 80 in the training set—which is further complicated by the dataset's high dimensionality. A PCA analysis showed that dimensionality can be reduced from 540 to 57 features while preserving 70% of the cumulative variance. Given the small number of failure observations, I may need to apply resampling techniques or consider alternative modeling approaches, either within or beyond logistic regression.
+
+Using PCA here may not be advisable, as the data is sparse. We attempt feature selection instead.
+
+```{r}
+glimpse(numeric_data$Label)
+```
+
+```{r}
+unique(numeric_data$Label)
+```
+```{r}
+numeric_data <- numeric_data %>%
+  mutate(Label = factor(Label, levels = c(-1, 1), labels = c("neg", "pos")))
+```
+
+```{r}
+#glimpse(numeric_data)
+```
+
+Next we'll perform feature reduction with a Lasso model.
+```{r}
+set.seed(123)
+folds <- vfold_cv(numeric_data, v = 10)
+
+# Recipe using numeric_data (not train_data)
+rec <- recipe(Label ~ ., data = numeric_data) %>%
+  step_dummy(all_nominal_predictors()) %>%
+  step_zv(all_predictors()) %>%
+  step_normalize(all_numeric_predictors()) 
+
+mod <- logistic_reg(penalty = tune(), mixture = 1) %>%
+  set_engine("glmnet") %>%
+  set_mode("classification")
+
+wf <- workflow() %>%
+  add_recipe(rec) %>%
+  add_model(mod)
+
+penalty_grid <- grid_regular(
+  penalty(range = c(-4, 0)),
+  levels = 10
+)
+
+set.seed(123)
+res <- tune_grid(
+  wf,
+  resamples = folds,
+  grid = penalty_grid,
+  metrics = metric_set(roc_auc)
+)
+
+best_penalty <- select_best(res, metric = "roc_auc")
+
+final_wf <- finalize_workflow(wf, best_penalty)
+
+# Fit final workflow to numeric_data
+final_fit <- fit(final_wf, data = numeric_data)
+
+vip(final_fit$fit$fit$fit, num_features = 20)
+```
+
+Now that we have our reduced variables. Let's check that our assumptions for logistic regression are met. We know that our assumptions are Linearity of log-odds, no multiconiliearity, no overdispersion, no influential outliers, good model fit.
+
+Here's our check for overdispersion.
+
+```{r}
+# Extract fitted model
+model <- final_fit$fit$fit$fit  # glm object
+
+# Calculate dispersion statistic
+dispersion <- sum(residuals(model, type = "pearson")^2) / model$.residual
+dispersion
+```
+
+
+Next, we run a logistic regression with those variables.
+```{r}
+# Suppose your top predictors are in a character vector:
+top_vars <- c("117", "67", "305", "200", "386", "338", "60", "59", "216", "341", "56", "441", "132", "354", "138", "7", "377", "142", "588", "249")
+
+# Subset your data (plus Label)
+reduced_data <- numeric_data %>%
+  select(all_of(c("Label", top_vars)))
+```
+
+
+```{r}
+# Make sure Label is binary (0/1)
+reduced_data <- reduced_data %>%
+  mutate(Label = as.numeric(as.factor(Label)) - 1)
+
+# Get only numeric predictors (excluding Label)
+numeric_vars <- numeric_data %>%
+  select(-Label) %>%
+  select(where(is.numeric)) %>%
+  names()
+
+# Create a long dataset for ggplot
+logit_df <- numeric_data %>%
+  pivot_longer(all_of(numeric_vars), names_to = "predictor", values_to = "value") %>%
+  group_by(predictor, value) %>%
+  summarise(prob = mean(Label), .groups = "drop") %>%
+  mutate(logit = log(prob / (1 - prob))) %>%
+  filter(is.finite(logit))  # remove infs and NaNs
+
+# Plot smoothed logit for each predictor
+ggplot(logit_df, aes(x = value, y = logit)) +
+  geom_point(alpha = 0.4) +
+  geom_smooth(method = "loess", se = FALSE, color = "blue") +
+  facet_wrap(~ predictor, scales = "free_x") +
+  theme_minimal() +
+  labs(title = "Check for Linearity of the Log-Odds",
+       y = "Log-Odds (logit)",
+       x = "Predictor Value")
+```
+
+
+```{r}
+# New recipe
+rec_reduced <- recipe(Label ~ ., data = reduced_data) %>%
+  step_dummy(all_nominal_predictors()) %>%
+  step_normalize(all_numeric_predictors())
+
+# Logistic regression without penalty
+log_reg <- logistic_reg() %>%
+  set_engine("glm") %>%
+  set_mode("classification")
+
+# Workflow
+wf_reduced <- workflow() %>%
+  add_recipe(rec_reduced) %>%
+  add_model(log_reg)
+
+# Fit model
+final_fit_reduced <- fit(wf_reduced, data = reduced_data)
+
+# Summarize model coefficients
+final_fit_reduced
+```
+
+```{r}
+glimpse(reduced_data)
+```
+
+
+
+
+
+Response Variable: The final column in the dataset "Label" will be our binary outcome. Explanatory Variables: A subset of the 590 sensor features.
+
+Statistical Methods:
+Logistic regression for classification
+PCA (Principal Component Analysis) to explore dimensionality
+Variable importance analysis to interpret feature relevance
+The `tree` function follows the same form as a linear regression model: we give the function the response variable to the left of ~ and specify it as a factor so the function knows that the response is not numeric, and then we put all of the predictors to the right of ~.
+
+## Exploratory Data Plots
+
+```{r}
+# Convert label to factor if needed
+secom$label <- as.factor(secom$label)
+
+# Example: Distribution of the first sensor by outcome
+ggplot(secom, aes(x = secom[[1]], fill = label)) +
+  geom_density(alpha = 0.5) +
+  labs(title = "Sensor 1 Density by Product Outcome", x = "Sensor 1 Reading", fill = "Label") +
+  theme_classic()
+
+ggplot(secom, aes(x = secom[[2]], fill = label)) +
+  geom_density(alpha = 0.5) +
+  labs(title = "Sensor 2 Density by Product Outcome", x = "Sensor 1 Reading", fill = "Label") +
+  theme_classic()
+
+ggplot(secom, aes(x = secom[[3]], fill = label)) +
+  geom_density(alpha = 0.5) +
+  labs(title = "Sensor 3 Density by Product Outcome", x = "Sensor 1 Reading", fill = "Label") +
+  theme_classic()
+
+ggplot(secom, aes(x = secom[[4]], fill = label)) +
+  geom_density(alpha = 0.5) +
+  labs(title = "Sensor 4 Density by Product Outcome", x = "Sensor 1 Reading", fill = "Label") +
+  theme_classic()
+
+ggplot(secom, aes(x = secom[[5]], fill = label)) +
+  geom_density(alpha = 0.5) +
+  labs(title = "Sensor 5 Density by Product Outcome", x = "Sensor 1 Reading", fill = "Label") +
+  theme_classic()
+
+# Example: Count of pass/fail
+ggplot(secom, aes(x = label)) +
+  geom_bar(fill = "steelblue") +
+  labs(title = "Count of Pass vs Fail Products", x = "Outcome", y = "Count") +
+  theme_classic()
+```
+
+
+## Next Steps
+
+Over the next week, I will: Handle missing data using appropriate imputation methods. Conduct feature selection to identify the most informative sensors. Fit a logistic regression model to the training data. Evaluate model performance using accuracy, ROC/AUC, and confusion matrix.
+
+## References
+
+UCI Machine Learning Repository. SECOM Data Set. https://archive.ics.uci.edu/ml/datasets/SECOM
+
+James, G., Witten, D., Hastie, T., & Tibshirani, R. (2021). An Introduction to Statistical Learning with Applications in R (2nd ed.).
