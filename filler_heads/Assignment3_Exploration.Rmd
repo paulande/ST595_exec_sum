@@ -1,0 +1,261 @@
+---
+title: "Data Visualization - Exploration"
+author: "Paul J Anderson"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+```{r loading in options and based packages, echo=FALSE, message=FALSE, warning=FALSE, results='hide'}
+knitr::opts_chunk$set(echo = FALSE)
+library(tidyverse)
+library(ggplot2)
+library(magrittr)
+library(readr)
+```
+
+## Introduction
+
+This report explores a manufacturing dataset focused on automatic filler machines used in a production environment. The data consists of measurements collected from two filler heads over multiple time periods and shifts. Understanding the variation in these measurements is critical for maintaining quality control and ensuring that products meet specification limits. The goal of this analysis is to examine the distribution of filler measurements, calculate key statistics such as the mean and standard deviation, and apply specification and control limits to assess process stability. By exploring these aspects, the report aims to provide insights into the manufacturing process and highlight areas where quality can be monitored or improved.
+
+# Questions
+Which filler heads and machines show the most consistent fill levels across shifts, and where do deviations occur?
+
+What process factors (machine, filler head, shift) are linked to fill levels consistently staying within specification and control limits?
+
+If there are deviations, where are they located and what might be causing this?
+
+
+Note: Here we took some considerable time to think through the questions that fall within the scope of interest and might produce interesting visualizations. (1 hour)
+
+
+## Data Description
+
+First we'll load in our data and take a glimpse.
+```{r}
+setwd("C:/Users/ander/OneDrive - Oregon State University/Classes/2025/Spring/ST537/M8")
+Overfill <- read_csv("Overfill.csv")
+glimpse(Overfill)
+```
+
+We’re working with a dataset that has 120 rows and 5 columns, all stored in a CSV file. The data includes measurements from two filler machines, labeled as Filler1 Machine 1 and Filler2 Machine 2. Alongside those measurements, we have variables for the time the data was collected, the shift during which it was recorded, and the specific filler head number—there are six heads in total. This setup gives us a clear view of how the machines performed across different times and shifts, letting us spot any trends or issues with individual filler heads. Overall, it’s a straightforward dataset that helps us track and understand the filling process better.
+
+## Exploratory Data Analysis
+
+For our questions of interest, it looks like we need to do some data manipulation. We will group fill level by filler, by shift, by head, by filler. To do this, we'll need to convert the list to a dataframe, reshape the data into long format, and group by filler, shift, and head. Then we can meaningfully summarize it.
+
+Note: Here we took considerable time to review the data and consider different ways to manipulate it, resolving to use this method. (2 hours)
+
+Right now, fillers are in separate columns — to group by filler, better to pivot longer.
+```{r}
+Overfill_long <- Overfill %>%
+  pivot_longer(cols = c(`Filler1 Machine 1`, `Filler2 Machine 2`),
+               names_to = "filler",
+               values_to = "fill_level")
+```
+
+Next, we group by filler, shift, head, and then create summarize, with removal of na values.
+```{r}
+Overfill_summary <- Overfill_long %>%
+  group_by(filler, shift, head) %>%
+  summarise(
+    mean_fill = mean(fill_level, na.rm = TRUE),
+    sd_fill = sd(fill_level, na.rm = TRUE),
+    count = n(),
+    .groups = "keep"
+  )
+```
+
+
+
+Next we'll calculate the summary statistics for the filler heads.
+```{r}
+summary(Overfill_summary)
+```
+
+We see that our dataset has been summarized and reduced to 24 observations. But this should make for some easy visualization. We will plan to revisit if greater granularity is important.
+
+Note: Here we took some considerable time looking at different ways to view the data and how to best graph them (2 hours).
+
+To help us compare response variable across the three faces of filler, shift, and head, we facet them together in the following plot.
+
+```{r}
+ggplot(Overfill_summary, aes(x = factor(head), y = mean_fill)) +
+  geom_boxplot() +
+  facet_grid(filler ~ shift) +  # filler as rows, shift as columns
+  labs(title = "Mean Fill by Head, Faceted by Filler and Shift",
+       x = "Head", y = "Mean Fill") +
+  theme_classic()
+```
+Generally, the plot shows that shifts 1 through 5 are pretty consistent across heads, machines, and shifts. However, filler head 6 stands out — on machine 1, its fill values deviate noticeably from the others, but on machine 2, it stays aligned with the typical average fill values.
+
+We perform a basic anova of the long data and full model to determine if there are statistically significant relationships beyond what we see visually.
+
+```{r}
+anova_result <- aov(fill_level ~ factor(head) * factor(filler) * factor(shift), data = Overfill_long)
+summary(anova_result)
+```
+
+We ran an ANOVA on the full model to explore which factors in our dataset explain variation in fill level, and the results provide convincing evidence that head, filler, and the interaction between head and filler contribute significantly to differences in fill level (p-values < 0.0001 at 216 degrees of freedom). Other factors and interactions, such as shift or its combinations with head and filler, were not statistically significant.
+
+Note: We tool considerable time to ensure this was done correctly and with the right test. (1 hour)
+
+## Applying specification and control limits
+
+We use specification limits and control limits to monitor and evaluate the filling process. Specification limits are defined by product requirements—usually set by quality standards or customer expectations—and indicate the acceptable range for fill levels. Control limits, on the other hand, are calculated from the process data itself, typically using the mean and standard deviation. These limits help us understand the natural variability in the process. If measurements fall outside the control limits, it's a sign the process might be unstable or influenced by special causes that need attention.
+
+We define the spec limits (218, 222), and calculate the mean and control values.
+```{r}
+spec_lower <- 215
+spec_upper <- 225
+
+process_mean <- mean(Overfill_long$fill_level, na.rm = TRUE)
+process_sd <- sd(Overfill_long$fill_level, na.rm = TRUE)
+
+control_upper <- process_mean + 3 * process_sd
+control_lower <- process_mean - 3 * process_sd
+```
+
+
+## Visualizing the Data
+
+To visualize the data, we used control charts and ribbon plots. Control charts display individual fill level measurements over time, along with the control limits, which make it easy to spot points that fall outside the expected range. Dashed line plots allow us to visualize variation across filler heads or machines by designating the area between upper and lower limits. These visual tools help us track how stable the process is and whether it's staying within acceptable bounds.
+
+We create a control chart using the values we calculated above.
+
+```{r}
+ggplot(Overfill_long, aes(x = time, y = fill_level)) +
+  geom_line(color = "steelblue") +
+  geom_hline(yintercept = process_mean, color = "black", linetype = "dashed") +
+  geom_hline(yintercept = control_upper, color = "red", linetype = "dotted") +
+  geom_hline(yintercept = control_lower, color = "red", linetype = "dotted") +
+  geom_hline(yintercept = spec_upper, color = "darkgreen", linetype = "longdash") +
+  geom_hline(yintercept = spec_lower, color = "darkgreen", linetype = "longdash") +
+  labs(title = "Control Chart of Fill Levels",
+       x = "Time",
+       y = "Fill Level") +
+  theme_classic()
+```
+There is a decipherable pattern present, much of the data is within the control limit, with some out of control points. But the data visualization is course, with time series set to round to the nearest hour.
+
+Due to the course nature of the time variable, we create an observation variable to reveal the full dataset.
+
+```{r}
+Overfill_long <- Overfill_long %>%
+  mutate(obs = row_number())
+```
+
+We create a new plot using data from both fillers, all 12 heads, and across 6 shifts ordered by observation number.
+
+```{r}
+ggplot(Overfill_long, aes(x = obs, y = fill_level)) +
+  geom_line(color = "steelblue") +
+  geom_hline(yintercept = process_mean, color = "black", linetype = "dashed") +
+  geom_hline(yintercept = control_upper, color = "red", linetype = "dotted") +
+  geom_hline(yintercept = control_lower, color = "red", linetype = "dotted") +
+  geom_hline(yintercept = spec_upper, color = "darkgreen", linetype = "longdash") +
+  geom_hline(yintercept = spec_lower, color = "darkgreen", linetype = "longdash") +
+  labs(title = "Control Chart of Fill Levels Across Filler, Head, and Shift",
+       x = "Observation",
+       y = "Fill Level") +
+  theme_classic()
+```
+The figure clearly shows all 240 datapoints oscillating around the mean. Two distinct peaks outside of the upper control limit and several points drift above the specification limit.
+
+We use facet by filler to show how the two machines perform on fill level across shifts and filler heads.
+
+```{r}
+ggplot(Overfill_long, aes(x = obs, y = fill_level)) +
+  geom_line(color = "steelblue") +
+  geom_hline(yintercept = process_mean, color = "black", linetype = "dashed") +
+  geom_hline(yintercept = control_upper, color = "red", linetype = "dotted") +
+  geom_hline(yintercept = control_lower, color = "red", linetype = "dotted") +
+  geom_hline(yintercept = spec_upper, color = "darkgreen", linetype = "longdash") +
+  geom_hline(yintercept = spec_lower, color = "darkgreen", linetype = "longdash") +
+  facet_wrap(~ filler) +   # facet by filler (machine)
+  labs(title = "Control Chart of Fill Levels by Machine",
+       x = "Observation",
+       y = "Fill Level") +
+  theme_classic()
+```
+We see that save for three occurrences, Filler 2 is maintaining within spec limit and not drifting out of control limit. While Filler 1 consistently drifts out of spec limit and out of control limit.
+
+We will use facet by filler head to visualize the problematic filler head we saw in our earlier visualized summary.
+
+```{r glimpse that tibble}
+ggplot(Overfill_long, aes(x = obs, y = fill_level)) +
+  geom_line(color = "steelblue") +
+  geom_hline(yintercept = process_mean, color = "black", linetype = "dashed") +
+  geom_hline(yintercept = control_upper, color = "red", linetype = "dotted") +
+  geom_hline(yintercept = control_lower, color = "red", linetype = "dotted") +
+  geom_hline(yintercept = spec_upper, color = "darkgreen", linetype = "longdash") +
+  geom_hline(yintercept = spec_lower, color = "darkgreen", linetype = "longdash") +
+  facet_wrap(~ head) +   # facet by filler head
+  labs(title = "Control Chart of Fill Levels by Filler Head",
+       x = "Observation",
+       y = "Fill Level") +
+  theme_classic()
+```
+Here we see that while all other filler heads remain within spec limits, the 6th filler head shows consistent deviation from spec limit and as seen in other graphs, out of control limit.
+
+Next we'll visualize the fillers side by side by subsetting the data and once again using a facet.
+
+```{r}
+# Filter the data to only include Head 6
+head6_data <- Overfill_long %>% filter(head == 6)
+
+ggplot(head6_data, aes(x = obs, y = fill_level)) +
+  geom_line(color = "steelblue") +
+  geom_hline(yintercept = process_mean, color = "black", linetype = "dashed") +
+  geom_hline(yintercept = control_upper, color = "red", linetype = "dotted") +
+  geom_hline(yintercept = control_lower, color = "red", linetype = "dotted") +
+  geom_hline(yintercept = spec_upper, color = "darkgreen", linetype = "longdash") +
+  geom_hline(yintercept = spec_lower, color = "darkgreen", linetype = "longdash") +
+  facet_wrap(~ filler, ncol = 2) +
+  labs(title = "Control Chart of Head 6 Across Fillers",
+       x = "Observation",
+       y = "Fill Level") +
+  theme_classic()
+```
+Here we see the final graph which shows out of spec and control limit from machine 1, head 6, and within spec limit performance of machine 2.
+
+## Interpretation of Results
+
+From the visualizations, we can see that most measurements fall within the control limits, suggesting the process is generally stable. The data oscillates around the mean, as expected, but there are some clear exceptions. The control chart shows two distinct peaks that exceed the upper control limit, along with several other points drifting above the upper specification limit. While the time series data is somewhat coarse—rounded to the nearest hour—a consistent pattern still emerges.
+
+When breaking the data down by filler, we see that Filler 2 remains within specification limits in nearly all cases, with only three minor exceptions. In contrast, Filler 1 consistently drifts above both the spec and control limits, indicating a potential issue that may require further investigation for calibration or maintenance.
+
+Looking further into individual heads, all but one maintain performance within acceptable bounds. The 6th filler head, however, consistently deviates from the spec limit and, as seen in other graphs, also exceeds the control limit. Finally, this is isolated to machine 1, while machine 2 shows stable, in-spec performance—even for the same head.
+
+These findings highlight specific areas for process improvement, particularly with Filler 1 and head 6 on machine 1. Out-of-control points like these often signal special causes—such as equipment wear, misalignment, or operator-related variability—that warrant further investigation.
+
+Additionally, it is reassuring that this in depth analysis of the issue correlated to the original summary facet of all explanatory variables by fill height and the results from our ANOVA.
+
+## Challenges and Effort
+
+Throughout the project, the workflow involved a combination of data cleaning, exploratory analysis, and visualization — which together took about 1 to 2 hours at a time over several sessions. One of the early challenges was dealing with the granularity of the time data. Since the timestamps were rounded to the nearest hour, some detail was lost in the time series plots, making it harder to identify subtle trends. To address this, we focused on observation order to better reveal underlying patterns, dedicating roughly 1 hour experimenting with different aggregation and visualization approaches.
+
+Another challenge was determining how best to apply and visualize specification and control limits. While the theoretical concepts were clear, translating them into code that dynamically adjusted to different groupings (by filler, head, machine) required several iterations and troubleshooting spread across 2 to 3 one-hour sessions. Resources like R documentation, Stack Overflow, and examples from the ggplot2 and dplyr packages were extremely helpful in resolving syntax and logic issues. I also drew on my quality control manufacturing experience and Lean Six Sigma training to validate the interpretation of control charts and specification limits.
+
+As patterns in the data became clearer, the approach evolved. Initially, the focus was on overall trends, but the analysis gradually shifted toward identifying specific problem areas—like the consistent deviation of Filler 1 and head 6. This refinement process, including creating targeted visualizations such as facet charts and compiling detailed statistical summaries grouped by machine, filler, and shift, was broken into multiple one-hour blocks totaling around 3 hours. Over time, attention moved from general process behavior to pinpointing exceptions and outliers signaling quality issues or process drift.
+
+Overall, the project became more investigative and hypothesis-driven as results emerged. The tools and techniques used also evolved—from basic summaries to more customized visual analysis—which took several additional one-hour increments, adding up to approximately 2 to 3 hours to finalize and validate findings and an additional hour or two to polish the final product.
+
+## Conclusion
+
+The analysis gives convincing evidence that while the overall filling process is generally stable and stays within control limits, there are clear exceptions that point to areas needing attention. Filler 2 consistently performs within both the specification and control limits, with only a few minor deviations. In contrast, Filler 1, specifically head 6—shows repeated instances of exceeding both spec and control limits, suggesting a potential issue with calibration and maintenance. It is interesting to note that shift did not play a role in this deviation, potentially ruling out a common assumption that labor is an issue with deviations of this sort. The visual tools, including control charts and ribbon plots, were key in surfacing these patterns and helped identify both individual outliers and consistent drift.
+
+Moving forward, it would be valuable to further investigate the root cause of Filler 1, Filler Head 6's variation. Collecting more granular time data could also improve time-based analysis and help detect short-term trend and correlated events. Finally, using predictive models or control chart automation could support proactive monitoring and long-term quality control. These next steps would help refine the process and strengthen its stability over time.
+
+## References
+
+Munzner, T. (2014). Visualization Analysis and Design. CRC Press.
+
+Pyzdek, T., & Keller, P. A. (2014). The Six Sigma Handbook (4th ed.). McGraw-Hill.
+
+R Core Team. (2024). R: A language and environment for statistical computing. R Foundation for Statistical Computing, Vienna, Austria. Available at: https://www.R-project.org/
+
+Wickham, H. (2016). ggplot2: Elegant Graphics for Data Analysis. Springer. Also available via: https://ggplot2.tidyverse.org/
+
+Wickham, H., & Grolemund, G. (2017). R for Data Science: Transform – Filter rows with filter. https://r4ds.had.co.nz/transform.html#filter-rows-with-filter
+
+Wickham, H., François, R., Henry, L., & Müller, K. (2023). dplyr: A Grammar of Data Manipulation. R package version 1.1.4. Available at: https://cran.r-project.org/package=dplyr

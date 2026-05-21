@@ -1,0 +1,203 @@
+---
+title: "Exploratory Analysis: Crohne's Disease Trials"
+author: "Paul Anderson"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(magrittr)
+```
+
+# Introduction
+
+This report presents an exploratory analysis of data from a clinical trial evaluating treatments for Crohn’s disease. The primary outcome of interest is the number of adverse events (nrAdvE) experienced by each patient. The dataset includes demographic and baseline health variables, such as sex, age, BMI, weight, and height, along with treatment group assignment and country of origin. The analysis aims to visualize and describe the distribution of adverse events and to assess how it may vary across treatment groups and patient characteristics.
+
+Crohn’s disease is a chronic inflammatory disease of the intestines. The package robustbase includes a small dataset CrohnD of 117 patients in three groups, one placebo group and two different drug groups. The dataset contains 117 observations and 9 variables. Each row represents a unique patient. The three treatment groups—placebo, d1, and d2—are equally represented, each with 39 patients. However, there is an imbalance in gender (100 females, 17 males) and country representation (78 from c1, 39 from c2).
+
+
+Install and load the package.
+```{r}
+#install.packages("robustbase")
+library(robustbase)
+```
+
+Load in the CrohnD dataset.
+```{r}
+data(CrohnD)
+crohn <- as_tibble(CrohnD)
+```
+
+Display basic structure of the dataset and ensure it's loaded in correctly.
+```{r}
+glimpse(crohn)
+unique(crohn$treat)
+unique(crohn$sex)
+unique(crohn$country)
+```
+
+Creating a tibble for these data as a metadata reference, since CrohnD does not include it.
+```{r}
+# create a data frame summarizing the variables
+variable_summary <- data.frame(
+  Variable = c("ID", "nrAdvE", "BMI", "height", "country", "sex", "age", "weight", "treat"),
+  Type = c("integer", "integer", "double", "integer", "factor", "factor", "integer", "integer", "factor"),
+  Description = c(
+    "Unique identifier for each patient",
+    "Number of adverse events experienced",
+    "Body Mass Index (kg/m^2)",
+    "Height of the patient (cm)",
+    "Country the patient is from (e.g., c1, c2)",
+    "Sex of the patient (M or F)",
+    "Age of the patient (years)",
+    "Weight of the patient (kg)",
+    "Treatment group (placebo, d1, d2)"
+  ),
+  stringsAsFactors = FALSE
+)
+
+# view the table
+variable_summary
+```
+
+
+## Equal numbers in the three treatment groups, but not equal numbers by gender or country.
+
+Create a summary table that shows these relationships.
+```{r}
+summary(crohn$treat)
+summary(crohn$sex)
+summary(crohn$country)
+```
+
+Draw a plot that there are equal numbers in the three treatment groups...
+```{r}
+ggplot(crohn, aes(x = treat)) +
+  geom_bar() +
+  labs(title = "Number of Patients by Treatment Group", x = "Treatment", y = "Count") +
+  theme_classic()
+```
+
+...but not equal numbers by gender...
+```{r}
+ggplot(crohn, aes(x = treat, fill = sex)) +
+  geom_bar(position = "dodge") +
+  labs(title = "Patients by Treatment Group and Sex", x = "Treatment", y = "Count") +
+  theme_classic()
+```
+...or country.
+```{r}
+ggplot(crohn, aes(x = treat, fill = country)) +
+  geom_bar(position = "dodge") +
+  labs(title = "Patients by Treatment Group and Country", x = "Treatment", y = "Count") +
+  theme_classic()
+```
+
+## Counts for all gender, country, and treatment combinations
+
+We draw a faceted bar plot.
+```{r}
+# Bar plot: x = treatment, fill = gender, facet by country
+ggplot(crohn, aes(x = treat, fill = sex)) +
+  geom_bar(position = "dodge") +
+  facet_wrap(~ country) +
+  labs(
+    title = "Counts by Treatment, Gender, and Country",
+    x = "Treatment Group",
+    y = "Number of Patients",
+    fill = "Sex"
+  ) +
+  theme_minimal()
+```
+
+## Number of adverse events, nrAdvE across treatement groups
+
+We use a histogram to display the distribution of nrAdvE.
+```{r}
+ggplot(crohn, aes(x = nrAdvE)) +
+  geom_histogram(binwidth = 1, fill = "steelblue", color = "white") +
+  labs(title = "Distribution of Number of Adverse Events", x = "Number of Adverse Events", y = "Count") +
+  theme_classic()
+```
+
+A set of three histograms, comparing the distributions of the numbers of adverse events for the three treatment groups.
+```{r}
+ggplot(crohn, aes(x = nrAdvE)) +
+  geom_histogram(binwidth = 1, fill = "steelblue", color = "white") +
+  facet_wrap(~ treat) +
+  labs(title = "Distribution of Adverse Events by Treatment", x = "Number of Adverse Events", y = "Count") +
+  theme_classic()
+```
+
+## Patchwork of Histograms of the other five variables, including ID. Explaination of binwidth and analysis.
+
+We define each plot below and combine them using the patchwork package.
+
+For each variable, an appropriate binwidth was chosen to best reflect the nature of the data and to aid interpretation of the histograms. For the variable ID, a binwidth of 100 was used. Since IDs are arbitrarily assigned and not inherently meaningful, wider bins help reduce visual clutter and simply display how evenly the identifiers are distributed. The BMI variable was plotted with a binwidth of 1, which is suitable because BMI values typically range from around 18 to 40. A binwidth of 1 highlights key clinical categories such as underweight, normal weight, overweight, and obese, allowing for clear interpretation. For height, a binwidth of 2 was selected because adult human height usually falls within 150 to 190 cm. This binwidth captures natural variations in height while maintaining enough granularity to spot patterns. The age variable used a binwidth of 5, effectively grouping individuals into clinically relevant age ranges such as 40–44 or 45–49. This approach helps identify age-based trends within the study population. Lastly, a binwidth of 5 was also chosen for weight, as it strikes a balance between showing detail and smoothing out random fluctuations, similar to the approach used for age. This binwidth allows for meaningful comparison of weight distributions without introducing excessive noise.
+
+While IDs are typically assumed to be arbitrary and evenly spaced, the histogram shows a distinct clustering between values in the 20,000 to 30,000 range, with a secondary group appearing above 50,000. This suggests that IDs may have been assigned in batches or phases, possibly corresponding to different sites, cohorts, or enrollment periods. Although the ID itself doesn't carry meaningful measurement information, this non-uniform distribution might reflect the structure or sequence of data collection within the study.
+BMI: Most patients cluster in the normal to overweight range, with few in extreme ends.
+Height: Fairly normal distribution; a symmetric shape, mostly between 150 and 180 cm.
+Age: Distribution shows skewness--more middle-aged or older participants.
+Weight: Follows BMI trend--shows central peak with a few heavier patients, some variability.
+
+
+```{r}
+library(patchwork)  # for arranging multiple plots
+
+# histogram for ID (not typically useful, but shown for completeness)
+p1 <- ggplot(crohn, aes(x = ID)) +
+  geom_histogram(binwidth = 100, fill = "black", color = "black") +
+  labs(title = "ID", x = "ID", y = "Count") +
+  theme_classic()
+
+# histogram for BMI
+p2 <- ggplot(crohn, aes(x = BMI)) +
+  geom_histogram(binwidth = 1, fill = "skyblue", color = "white") +
+  labs(title = "BMI", x = "BMI", y = "Count") +
+  theme_classic()
+
+# histogram for height
+p3 <- ggplot(crohn, aes(x = height)) +
+  geom_histogram(binwidth = 2, fill = "lightgreen", color = "white") +
+  labs(title = "Height", x = "Height (cm)", y = "Count") +
+  theme_classic()
+
+# histogram for age
+p4 <- ggplot(crohn, aes(x = age)) +
+  geom_histogram(binwidth = 5, fill = "salmon", color = "white") +
+  labs(title = "Age", x = "Age (years)", y = "Count") +
+  theme_classic()
+
+# histogram for weight
+p5 <- ggplot(crohn, aes(x = weight)) +
+  geom_histogram(binwidth = 5, fill = "plum", color = "white") +
+  labs(title = "Weight", x = "Weight (kg)", y = "Count") +
+  theme_classic()
+
+# combine plots using patchwork
+(p1 | p2) / (p3 | p4) / p5
+```
+
+
+## Description and Analysis
+
+From histograms created for five key continuous variables: ID, BMI, height, age, and weight. ID: Contrary to expectations of randomness, IDs cluster in the 20,000–30,000 range, with a second cluster above 50,000, suggesting phased enrollment or site-specific batching. BMI: Most values fall between 20 and 35, indicating the majority of patients are within or above the normal weight range. Height and Weight: These are roughly normally distributed. Most patients are between 150–180 cm and 55–85 kg, respectively. Age: The age distribution shows a concentration in middle-aged adults, with a few older individuals. These distributions provide context for the population under study, helping assess whether groups are comparable at baseline.
+
+The number of adverse events (nrAdvE) was visualized using histograms and barplots. The distribution is right-skewed, with most patients experiencing few events and a smaller number experiencing many. This skew is typical in clinical adverse event data, as most patients tolerate treatment well while a few may report multiple issues. 
+
+Barplots and faceted histograms were used to compare adverse event counts across treatment groups. Placebo, d1, and d2 groups show some variation in spread and central tendency. Visual inspection suggests a slightly lower number of adverse events in one or both active treatment groups compared to placebo, but this would need formal testing. We also used faceted bar plots to explore the distribution of patients across combinations of treatment, sex, and country, which highlighted the imbalance in gender and geographic distribution, an important consideration for further statistical modeling.
+
+Recommendations for next steps including, performing statistical testing (ANOVA or Kruskal-Wallis) to formally assess differences in adverse events between treatment groups. Consider stratifying future analyses or modeling efforts by sex and country to adjust for imbalances. Investigate the non-random ID structure to understand data collection phases.
+
+## References
+Brant, S. R., & Nguyen, G. C. (2008). Is there a gender difference in the prevalence of Crohn’s disease or ulcerative colitis? Inflammatory Bowel Diseases, 14(suppl_2), S2–S3. https://doi.org/10.1002/ibd.20540
+
+Unwin, A. (2015). Graphical data analysis with R. In A. Unwin (Ed.), Graphical Data Analysis with R (Ch. 6 & Ch. 12). CRC Press. ProQuest Ebook Central. http://ebookcentral.proquest.com/lib/osu/detail.action?docID=4648053
+
+
+
+
+
