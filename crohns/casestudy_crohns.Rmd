@@ -1,45 +1,41 @@
 ---
-title: "Exploratory Analysis: Crohne's Disease Trials"
+title: "Comparing Adverse Event Rates Across Treatment Groups in a Crohn's Disease Trial"
 author: "Paul Anderson"
 date: "`r Sys.Date()`"
 output: pdf_document
+header-includes:
+  - \usepackage{float}
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(magrittr)
+library(robustbase)
+library(knitr)
+library(kableExtra)
+library(patchwork) # for arranging multiple plots - Fig.1
+library(MASS)
 ```
 
 # Introduction
 
-This report presents an exploratory analysis of data from a clinical trial evaluating treatments for Crohn’s disease. The primary outcome of interest is the number of adverse events (nrAdvE) experienced by each patient. The dataset includes demographic and baseline health variables, such as sex, age, BMI, weight, and height, along with treatment group assignment and country of origin. The analysis aims to visualize and describe the distribution of adverse events and to assess how it may vary across treatment groups and patient characteristics.
+Crohn's disease is a chronic inflammatory bowel condition characterized by periods of flare and remission. This report presents an exploratory analysis of a clinical trial evaluating three treatments--placebo, drug d1, and drug d2--with the number of adverse events (nrAdvE) as the primary response variable. The central question of interest is: does the number of adverse events differ significantly across treatment groups?
 
-Crohn’s disease is a chronic inflammatory disease of the intestines. The package robustbase includes a small dataset CrohnD of 117 patients in three groups, one placebo group and two different drug groups. The dataset contains 117 observations and 9 variables. Each row represents a unique patient. The three treatment groups—placebo, d1, and d2—are equally represented, each with 39 patients. However, there is an imbalance in gender (100 females, 17 males) and country representation (78 from c1, 39 from c2).
+The data come from CrohnD, a dataset included in the R package robustbase, originating from the trial described in Cantoni and Ronchetti (2009) (Table 1). Each row represents a unique patient. Treatment groups are balanced, with 39 patients assigned to each of placebo, d1, and d2. However, the sample is heavily female (100 F, 17 M) and geographically skewed (78 from country c1, 39 from c2). These imbalances are not randomly distributed across treatment groups and warrant attention: if sex or country are associated with adverse event frequency, their unequal representation could confound treatment comparisons. The dataset originates from a single methodological illustration with no documented randomization scheme for these baseline characteristics, which limits the strength of any causal inference drawn from this analysis.
 
-
-Install and load the package.
-```{r}
-#install.packages("robustbase")
-library(robustbase)
-```
-
-Load in the CrohnD dataset.
-```{r}
+```{r data, include=FALSE}
 data(CrohnD)
 crohn <- as_tibble(CrohnD)
 ```
 
-Display basic structure of the dataset and ensure it's loaded in correctly.
-```{r}
+```{r glimpse, include=FALSE}
 glimpse(crohn)
 unique(crohn$treat)
 unique(crohn$sex)
 unique(crohn$country)
 ```
 
-Creating a tibble for these data as a metadata reference, since CrohnD does not include it.
-```{r}
+```{r table-one, echo = FALSE, warning = FALSE}
 # create a data frame summarizing the variables
 variable_summary <- data.frame(
   Variable = c("ID", "nrAdvE", "BMI", "height", "country", "sex", "age", "weight", "treat"),
@@ -49,7 +45,7 @@ variable_summary <- data.frame(
     "Number of adverse events experienced",
     "Body Mass Index (kg/m^2)",
     "Height of the patient (cm)",
-    "Country the patient is from (e.g., c1, c2)",
+    "Country the patient is from (anonymized; c1, c2)",
     "Sex of the patient (M or F)",
     "Age of the patient (years)",
     "Weight of the patient (kg)",
@@ -59,46 +55,43 @@ variable_summary <- data.frame(
 )
 
 # view the table
-variable_summary
+kable(variable_summary, booktabs = TRUE, caption = "Variable descriptions. Anonamized dataset from Genexion SA, Geneva courtesy of Dr. Enrico Chavez (Cantoni and Ronchetti, 2009).") |>
+  kable_styling(latex_options = c("hold_position", "scale_down"))
 ```
 
-
-## Equal numbers in the three treatment groups, but not equal numbers by gender or country.
-
-Create a summary table that shows these relationships.
-```{r}
+```{r summary, include=FALSE}
+# Create a summary table that shows these relationships.
 summary(crohn$treat)
 summary(crohn$sex)
 summary(crohn$country)
 ```
 
-Draw a plot that there are equal numbers in the three treatment groups...
-```{r}
+```{r, include=FALSE}
+# Draw a plot that there are equal numbers in the three treatment groups...
 ggplot(crohn, aes(x = treat)) +
   geom_bar() +
   labs(title = "Number of Patients by Treatment Group", x = "Treatment", y = "Count") +
   theme_classic()
 ```
 
-...but not equal numbers by gender...
-```{r}
+```{r, include=FALSE}
+# ...but not equal numbers by gender...
 ggplot(crohn, aes(x = treat, fill = sex)) +
   geom_bar(position = "dodge") +
   labs(title = "Patients by Treatment Group and Sex", x = "Treatment", y = "Count") +
   theme_classic()
 ```
-...or country.
-```{r}
+
+```{r, include=FALSE}
+# ...or country.
 ggplot(crohn, aes(x = treat, fill = country)) +
   geom_bar(position = "dodge") +
   labs(title = "Patients by Treatment Group and Country", x = "Treatment", y = "Count") +
   theme_classic()
 ```
 
-## Counts for all gender, country, and treatment combinations
-
-We draw a faceted bar plot.
-```{r}
+```{r, include=FALSE}
+# We draw a faceted bar plot.
 # Bar plot: x = treatment, fill = gender, facet by country
 ggplot(crohn, aes(x = treat, fill = sex)) +
   geom_bar(position = "dodge") +
@@ -112,88 +105,123 @@ ggplot(crohn, aes(x = treat, fill = sex)) +
   theme_minimal()
 ```
 
-## Number of adverse events, nrAdvE across treatement groups
+# Exploratory Data Analysis
 
-We use a histogram to display the distribution of nrAdvE.
-```{r}
-ggplot(crohn, aes(x = nrAdvE)) +
-  geom_histogram(binwidth = 1, fill = "steelblue", color = "white") +
-  labs(title = "Distribution of Number of Adverse Events", x = "Number of Adverse Events", y = "Count") +
-  theme_classic()
-```
+Distributions of baseline charicteristics (BMI, height, age, and weight) are shown in Figure 1. The sample skews toward middle-aged and older adults, with most patients between 40 and 65 years, consistent with the typical age of Crohn's disease onset and progression. BMI is concentrated in the overweight range (25–30 kg/m^2) with a right tail extending toward obesity, suggesting this characteristic may warrant consideration in modeling. Height and weight are roughly symmetric and do not show notable anomalies.
 
-A set of three histograms, comparing the distributions of the numbers of adverse events for the three treatment groups.
-```{r}
-ggplot(crohn, aes(x = nrAdvE)) +
-  geom_histogram(binwidth = 1, fill = "steelblue", color = "white") +
-  facet_wrap(~ treat) +
-  labs(title = "Distribution of Adverse Events by Treatment", x = "Number of Adverse Events", y = "Count") +
-  theme_classic()
-```
-
-## Patchwork of Histograms of the other five variables, including ID. Explaination of binwidth and analysis.
-
-We define each plot below and combine them using the patchwork package.
-
-For each variable, an appropriate binwidth was chosen to best reflect the nature of the data and to aid interpretation of the histograms. For the variable ID, a binwidth of 100 was used. Since IDs are arbitrarily assigned and not inherently meaningful, wider bins help reduce visual clutter and simply display how evenly the identifiers are distributed. The BMI variable was plotted with a binwidth of 1, which is suitable because BMI values typically range from around 18 to 40. A binwidth of 1 highlights key clinical categories such as underweight, normal weight, overweight, and obese, allowing for clear interpretation. For height, a binwidth of 2 was selected because adult human height usually falls within 150 to 190 cm. This binwidth captures natural variations in height while maintaining enough granularity to spot patterns. The age variable used a binwidth of 5, effectively grouping individuals into clinically relevant age ranges such as 40–44 or 45–49. This approach helps identify age-based trends within the study population. Lastly, a binwidth of 5 was also chosen for weight, as it strikes a balance between showing detail and smoothing out random fluctuations, similar to the approach used for age. This binwidth allows for meaningful comparison of weight distributions without introducing excessive noise.
-
-While IDs are typically assumed to be arbitrary and evenly spaced, the histogram shows a distinct clustering between values in the 20,000 to 30,000 range, with a secondary group appearing above 50,000. This suggests that IDs may have been assigned in batches or phases, possibly corresponding to different sites, cohorts, or enrollment periods. Although the ID itself doesn't carry meaningful measurement information, this non-uniform distribution might reflect the structure or sequence of data collection within the study.
-BMI: Most patients cluster in the normal to overweight range, with few in extreme ends.
-Height: Fairly normal distribution; a symmetric shape, mostly between 150 and 180 cm.
-Age: Distribution shows skewness--more middle-aged or older participants.
-Weight: Follows BMI trend--shows central peak with a few heavier patients, some variability.
+The response variable nrAdvE is a non-negative integer count ranging from 0 to 12 (Figure 2). Its distribution is strongly right-skewed, with 50 of 117 patients (43%) reporting zero adverse events and a long tail of patients reporting progressively higher counts. This shape is typical of clinical adverse event data and has immediate implications for statistical testing--the normality assumption required for ANOVA is unlikely to hold.
 
 
-```{r}
-library(patchwork)  # for arranging multiple plots
-
-# histogram for ID (not typically useful, but shown for completeness)
-p1 <- ggplot(crohn, aes(x = ID)) +
-  geom_histogram(binwidth = 100, fill = "black", color = "black") +
-  labs(title = "ID", x = "ID", y = "Count") +
-  theme_classic()
-
+```{r fig-one, echo = FALSE, fig.cap = "Distribution of baseline characteristics: BMI, height, age, and weight", fig.pos="H"}
 # histogram for BMI
-p2 <- ggplot(crohn, aes(x = BMI)) +
-  geom_histogram(binwidth = 1, fill = "skyblue", color = "white") +
+p1 <- ggplot(crohn, aes(x = BMI)) +
+  geom_histogram(binwidth = 1, fill = "darkgrey", color = "white") +
   labs(title = "BMI", x = "BMI", y = "Count") +
   theme_classic()
 
 # histogram for height
-p3 <- ggplot(crohn, aes(x = height)) +
-  geom_histogram(binwidth = 2, fill = "lightgreen", color = "white") +
+p2 <- ggplot(crohn, aes(x = height)) +
+  geom_histogram(binwidth = 2, fill = "darkgrey", color = "white") +
   labs(title = "Height", x = "Height (cm)", y = "Count") +
   theme_classic()
 
 # histogram for age
-p4 <- ggplot(crohn, aes(x = age)) +
-  geom_histogram(binwidth = 5, fill = "salmon", color = "white") +
+p3 <- ggplot(crohn, aes(x = age)) +
+  geom_histogram(binwidth = 5, fill = "darkgrey", color = "white") +
   labs(title = "Age", x = "Age (years)", y = "Count") +
   theme_classic()
 
 # histogram for weight
-p5 <- ggplot(crohn, aes(x = weight)) +
-  geom_histogram(binwidth = 5, fill = "plum", color = "white") +
+p4 <- ggplot(crohn, aes(x = weight)) +
+  geom_histogram(binwidth = 5, fill = "darkgrey", color = "white") +
   labs(title = "Weight", x = "Weight (kg)", y = "Count") +
   theme_classic()
 
 # combine plots using patchwork
-(p1 | p2) / (p3 | p4) / p5
+(p1 | p2) / (p3 | p4)
 ```
 
+```{r, include=FALSE}
+sum(crohn$nrAdvE == 0)
+```
 
-## Description and Analysis
+```{r fig-two, echo=FALSE, fig.cap="Distribution of adverse events (nrAdvE)", fig.align="center", out.width="80%", fig.pos="H"}
+# Number of adverse events, nrAdvE across treatement groups we use a histogram to display the distribution of nrAdvE.
+ggplot(crohn, aes(x = nrAdvE)) +
+  geom_histogram(binwidth = 1, fill = "darkgrey", color = "white") +
+  labs(x = "Number of Adverse Events", y = "Count") +
+  theme_classic()
+```
+When faceted by treatment group (Figure 3), all three groups retain this right-skewed shape, but differ in concentration at zero. The d1 group shows the sharpest spike at zero relative to placebo, which shows greater spread across higher counts. The d2 group falls between the two. These visual differences motivate a formal comparison of nrAdvE across treatment groups.
 
-From histograms created for five key continuous variables: ID, BMI, height, age, and weight. ID: Contrary to expectations of randomness, IDs cluster in the 20,000–30,000 range, with a second cluster above 50,000, suggesting phased enrollment or site-specific batching. BMI: Most values fall between 20 and 35, indicating the majority of patients are within or above the normal weight range. Height and Weight: These are roughly normally distributed. Most patients are between 150–180 cm and 55–85 kg, respectively. Age: The age distribution shows a concentration in middle-aged adults, with a few older individuals. These distributions provide context for the population under study, helping assess whether groups are comparable at baseline.
+```{r fig-three, echo = FALSE, fig.cap = "Distribution of adverse events by treatment group", fig.pos="H"}
+# A set of three histograms, comparing the distributions of the numbers of adverse events for the three treatment groups.
+ggplot(crohn, aes(x = nrAdvE)) +
+  geom_histogram(binwidth = 1, fill = "darkgrey", color = "white") +
+  facet_wrap(~ treat) +
+  labs(x = "Number of Adverse Events", y = "Count") +
+  theme_classic()
+```
 
-The number of adverse events (nrAdvE) was visualized using histograms and barplots. The distribution is right-skewed, with most patients experiencing few events and a smaller number experiencing many. This skew is typical in clinical adverse event data, as most patients tolerate treatment well while a few may report multiple issues. 
+# Methods and Modeling
 
-Barplots and faceted histograms were used to compare adverse event counts across treatment groups. Placebo, d1, and d2 groups show some variation in spread and central tendency. Visual inspection suggests a slightly lower number of adverse events in one or both active treatment groups compared to placebo, but this would need formal testing. We also used faceted bar plots to explore the distribution of patients across combinations of treatment, sex, and country, which highlighted the imbalance in gender and geographic distribution, an important consideration for further statistical modeling.
+To assess whether the number of adverse events differs across treatment groups, a Kruskal-Wallis rank sum test was used. Prior to testing, the normality assumption required for a one-way ANOVA was evaluated using the Shapiro-Wilk test. The overall distribution of nrAdvE was found to be significantly non-normal (W = 0.76, p-value < 0.001), and this held within each treatment group individually (all p-values < 0.001). Given this violation, the non-parametric Kruskal-Wallis test was selected as the alternative to ANOVA. The null hypothesis is that the distribution of adverse events is identical across all three treatment groups. Observations are assumed to be independent, with each row representing a unique patient with no repeated measures. While Kruskal-Wallis is used here as an exploratory tool, the data source (Cantoni & Ronchetti, 2009) uses this dataset primarily as a methodological illustration and does not document a formal randomization scheme or sampling methodology, further supporting a descriptive rather than inferential interpretation. Given the count nature of nrAdvE, a negative binomial regression model would be better suited to formal inference and is recommended for future work.
 
-Recommendations for next steps including, performing statistical testing (ANOVA or Kruskal-Wallis) to formally assess differences in adverse events between treatment groups. Consider stratifying future analyses or modeling efforts by sex and country to adjust for imbalances. Investigate the non-random ID structure to understand data collection phases.
+```{r, include = FALSE}
+# check normality
+shapiro.test(crohn$nrAdvE)
+
+# Or by group
+crohn %>% group_by(treat) %>%
+  summarise(p_shapiro = shapiro.test(nrAdvE)$p.value)
+```
+
+```{r, include = FALSE}
+# check overdispersion
+mean(crohn$nrAdvE)
+var(crohn$nrAdvE)
+```
+
+```{r table-two, echo = FALSE}
+kw_result <- kruskal.test(nrAdvE ~ treat, data = crohn)
+
+kw_table <- data.frame(
+  Statistic = round(kw_result$statistic, 3),
+  df = kw_result$parameter,
+  `p-value` = round(kw_result$p.value, 3),
+  check.names = FALSE
+)
+
+knitr::kable(kw_table, 
+             caption = "Kruskal-Wallis Test: Adverse Events by Treatment Group",
+             booktabs = TRUE) %>%
+  kable_styling(latex_options = c("striped", "hold_position"),
+                full_width = FALSE,
+                position = "center")
+```
+
+# Results
+
+A Kruskal-Wallis rank sum test found no significant difference in the 
+distribution of adverse events across treatment groups ($\chi^2$ = 2.40, 
+p = 0.301). There is insufficient evidence to conclude that the number of 
+adverse events differs between the placebo, d1, and d2 groups. This is 
+consistent with the visual inspection of Figure 3, where all three groups 
+show similar right-skewed distributions concentrated near zero, with 
+overlapping spreads. Given the exploratory nature of this analysis and the 
+inferential limitations noted in the Methods section, this null result should 
+be interpreted cautiously rather than as definitive evidence of treatment 
+equivalence.
+
+## Conclusions and Discussion
+
+A Kruskal-Wallis test found no significant difference in adverse event counts across treatment groups ($\chi^2$ = 2.40, p = 0.301), suggesting that treatment assignment alone does not explain variation in nrAdvE in this sample. This analysis benefits from a balanced treatment design (39 patients per group) and the availability of multiple baseline characteristics that could support more nuanced modeling. However, several limitations temper these conclusions. The dataset is small (n = 117), heavily female (86%), and drawn from only two countries with no documented recruitment or randomization methodology, as noted from review of its primary source (Cantoni and Ronchetti, 2009). These factors limit both statistical power and generalizability. The Kruskal-Wallis test, while appropriate given the non-normality of nrAdvE, is a rank-based method that does not account for the count nature of the response variable or adjust for the observed imbalances in sex and country. A null result here should not be interpreted as evidence of treatment equivalence; with n = 117 and a right-skewed outcome, the test may lack sufficient power to detect a true effect. Future work should consider a negative binomial regression model, which would better accommodate overdispersed count data and allow adjustment for sex and country as potential confounders. Furthermore, the robust saddlepoint test proposed by Cantoni & Ronchetti (2009) for generalized linear models may warrant evaluation in future work, particularly with datasets where a formal randomization scheme is documented and the assumptions required for inference are met.
 
 ## References
-Brant, S. R., & Nguyen, G. C. (2008). Is there a gender difference in the prevalence of Crohn’s disease or ulcerative colitis? Inflammatory Bowel Diseases, 14(suppl_2), S2–S3. https://doi.org/10.1002/ibd.20540
+Cantoni, E., and Ronchetti, E. (2009). Robust and accurate inference for generalized linear models. Journal of Multivariate Analysis, 100(9), 2000–2012.
+https://doi.org/10.1016/j.jmva.2009.06.012
+
+Brant, S. R., and Nguyen, G. C. (2008). Is there a gender difference in the prevalence of Crohn’s disease or ulcerative colitis? Inflammatory Bowel Diseases, 14(suppl_2), S2–S3. https://doi.org/10.1002/ibd.20540
 
 Unwin, A. (2015). Graphical data analysis with R. In A. Unwin (Ed.), Graphical Data Analysis with R (Ch. 6 & Ch. 12). CRC Press. ProQuest Ebook Central. http://ebookcentral.proquest.com/lib/osu/detail.action?docID=4648053
 
