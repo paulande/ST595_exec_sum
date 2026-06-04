@@ -22,7 +22,6 @@ format:
 execute:
   echo: false
   warning: false
-bibliography: references.bib
 ---
 
 ## Overview
