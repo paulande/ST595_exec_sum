@@ -1,0 +1,114 @@
+---
+title: "Oregon Is Leaving Its Neighbors Uninsured — And It's Not About Money"
+subtitle: "A data analysis of 200,000 Oregon residents reveals a coverage gap that income alone can't explain."
+author:
+  - name: Paul Anderson
+date: today
+date-format: long
+format:
+  html:
+    toc: true
+    toc-depth: 2
+    toc-title: "Contents"
+    theme: cosmo
+    number-sections: false
+    smooth-scroll: true
+  pdf:
+    toc: false
+    geometry:
+      - margin=1in
+    fontsize: 11pt
+    linestretch: 1.4
+execute:
+  echo: false
+  warning: false
+bibliography: references.bib
+---
+
+## Overview
+
+If you lost your job tomorrow, you'd probably worry about health insurance. But what if the rules said you simply weren't allowed to have it — no matter how much you earned, how long you'd lived here, or how badly you needed it?
+
+That's the reality for a significant slice of Oregon's population. And new data analysis of nearly 200,000 Oregon residents makes it impossible to ignore.
+
+---
+
+## The Numbers Are Stark
+
+Using five years of U.S. Census survey data (2020–2024), we examined who in Oregon has health insurance — and who doesn't. The findings on citizenship status are striking:
+
+**Non-citizens in Oregon are uninsured at roughly 26%** — compared to just 4–9% for U.S.-born residents. That's a gap of more than 20 percentage points.
+
+But here's what makes this finding especially important: **that gap doesn't go away when you account for income.**
+
+When the analysis controlled for earnings, education level, employment status, age, race, and household size, non-citizens still had **4.6 times higher odds of being uninsured** than U.S.-born Oregonians. Even naturalized citizens (people who have gone through the full legal process of becoming American) remained at elevated risk.
+
+The math is blunt: most of this gap isn't explained by who earns what. It's explained by who is *allowed* to be covered.
+
+---
+
+## "But Don't Employed People Get Insurance Through Work?"
+
+This is the most common assumption, and the data says no.
+
+Even among people who are *employed*, non-citizens are uninsured at around **27%**, compared to roughly **6% for U.S.-born workers in the same jobs**. That's a 21-point gap within the same employment category.
+
+For unemployed non-citizens, the situation compounds: an uninsured rate near **42%**. They're cut off from employer coverage *and* from many public programs that would be available to a U.S.-born person in identical economic circumstances.
+
+The coverage gap doesn't shrink as you move up the income scale. Uninsured individuals appear at every income level--the problem isn't that non-citizens are poor. It's that **the eligibility rules treat them differently, regardless of their contributions to the community**.
+
+---
+
+## This Is a Policy Problem, Not a People Problem
+
+It would be easy to conclude that the uninsured simply need better jobs or higher incomes. The data says otherwise.
+
+Socioeconomic factors like education, employment, and earnings explain only a **small fraction** of the citizenship gap in health coverage. After accounting for all of them, the gap barely budges. What *does* predict coverage is legal eligibility: what your immigration status permits you to enroll in.
+
+Oregon has made meaningful progress on health coverage in recent years, the state has among the highest insurance rates in the country for the general population. But that progress has not reached everyone who lives and works here.
+
+As our analysis concludes:
+
+> "Policy implications point to eligibility structure, not income or employment, as the primary driver of coverage inequality."
+
+---
+
+## What Needs to Change
+
+The analysis is clear on what kinds of interventions would actually move the needle:
+
+- **Expanding coverage eligibility regardless of immigration status** — income-based and employment-based programs alone will not close a gap that is rooted in legal eligibility rules
+- **Reducing waiting periods** for immigrants, including those who have naturalized
+- **Improving enrollment access** for non-citizens, including language support and outreach to communities with historically low enrollment
+
+Oregon has already shown it is willing to lead. The state was among the first to extend Medicaid to certain immigrant populations. But the data shows the job is not finished.
+
+---
+
+## Who This Affects — And Who Should Care
+
+The 26% uninsured rate among non-citizens isn't an abstraction. These are people working in Oregon's farms, restaurants, warehouses, and care facilities. They pay into the local economy. Many have U.S.-born children who *are* covered, meaning the same household can have vastly different access to care depending on which family member gets sick.
+
+**For insurance providers and credit unions:** Uninsured residents are more likely to delay care, accumulate medical debt, and face financial crisis. Expanding the insured pool is good for community financial health, not just individual wellbeing.
+
+**For human rights organizations:** The data provides hard statistical backing for what advocates have long argued: coverage barriers are structural, not behavioral.
+
+**For city and county governments:** Local emergency services and safety-net clinics absorb the cost of uninsured residents in crisis. Preventive coverage is cheaper--for everyone.
+
+**For voters:** Oregon's next legislative session will include debates about healthcare eligibility. This data is a reminder of what's at stake when those decisions are made.
+
+---
+
+## The Bottom Line
+
+Oregon's uninsured gap by citizenship status is large, persistent, and--according to the data--almost entirely a product of *who the rules allow to be covered*, not who can afford it or who works hard enough.
+
+The fix isn't complicated in principle, even if it's politically difficult: **extend eligibility, reduce barriers, and stop treating legal status as a proxy for whether someone deserves healthcare.**
+
+The data has done its job. Now it's up to policymakers, advocates, and voters to do theirs.
+
+---
+
+## Methods
+
+This analysis is based on 2020–2024 American Community Survey 5-Year Public Use Microdata Sample (PUMS) data for Oregon, using survey-weighted logistic regression models. The sample included approximately 200,000 Oregon residents. Models controlled for income, education level, employment status, age, race, and household size.
